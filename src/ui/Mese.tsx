@@ -1,0 +1,168 @@
+import { signal } from '@preact/signals';
+import { useState } from 'preact/hooks';
+import { latestBalance, outstandingItems, residual } from '../domain/calc';
+import { addDays, endOfMonth, todayLocal } from '../domain/days';
+import { buildItems } from '../domain/items';
+import { formatEuro, parseEuro } from '../domain/money';
+import type { Item, Kind } from '../domain/types';
+import { addBalance, addOneOff, data, setItemAmount, setPaid, setPendingDebit } from '../state/store';
+import { backupDue } from '../storage/backup';
+import { screen } from './Nav';
+
+export const viewMonth = signal(todayLocal().slice(0, 7));
+
+const plain = (c: number) => (c / 100).toFixed(2).replace('.', ',');
+const MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
+const monthLabel = (m: string) => `${MESI[Number(m.slice(5)) - 1]} ${m.slice(0, 4)}`;
+
+function BalanceForm({ label }: { label: string }) {
+  const [v, setV] = useState('');
+  const parsed = parseEuro(v);
+  return (
+    <form
+      class="row"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (parsed !== null) void addBalance(parsed).then(() => setV(''));
+      }}
+    >
+      <input inputMode="decimal" placeholder="es. 1.500,00" aria-label="Saldo del conto" value={v} onInput={(e) => setV(e.currentTarget.value)} />
+      <button type="submit" disabled={parsed === null}>{label}</button>
+    </form>
+  );
+}
+
+function ItemRow({ item, balanceDay }: { item: Item; balanceDay?: string }) {
+  return (
+    <li class={`item ${item.kind} ${item.paid ? 'done' : ''} ${item.skipped ? 'skipped' : ''}`}>
+      <input
+        type="checkbox"
+        aria-label={`Pagata: ${item.name}`}
+        checked={item.paid}
+        onChange={(e) => void setPaid(item, e.currentTarget.checked)}
+      />
+      <span class="day">{item.day.slice(8)}</span>
+      <span class="name">
+        {item.name}
+        {item.estimated ? <small> stima</small> : null}
+      </span>
+      {item.kind === 'expense' && balanceDay && item.day <= balanceDay && !item.paid ? (
+        <label class="pending">
+          <input type="checkbox" aria-label={`Ancora da addebitare: ${item.name}`} checked={item.pendingDebit}
+            onChange={(e) => void setPendingDebit(item, e.currentTarget.checked)} />
+          <small> non ancora addebitata</small>
+        </label>
+      ) : null}
+      <input
+        class="amount"
+        inputMode="decimal"
+        aria-label={`Importo: ${item.name}`}
+        defaultValue={plain(item.amount)}
+        key={item.key + item.amount}
+        onBlur={(e) => {
+          const c = parseEuro(e.currentTarget.value);
+          if (c !== null && c !== item.amount) void setItemAmount(item, c);
+        }}
+      />
+    </li>
+  );
+}
+
+function AddOneOff() {
+  const [name, setName] = useState('');
+  const [amount, setAmount] = useState('');
+  const [day, setDay] = useState(todayLocal());
+  const [kind, setKind] = useState<Kind>('expense');
+  const cents = parseEuro(amount);
+  return (
+    <form
+      class="card"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!name.trim() || cents === null) return;
+        void addOneOff({ name: name.trim(), kind, amount: cents, day, paid: false }).then(() => {
+          setName('');
+          setAmount('');
+        });
+      }}
+    >
+      <h3>Aggiungi una voce</h3>
+      <div class="row">
+        <input placeholder="Nome" aria-label="Nome voce" value={name} onInput={(e) => setName(e.currentTarget.value)} />
+        <input inputMode="decimal" placeholder="Importo" aria-label="Importo voce" value={amount} onInput={(e) => setAmount(e.currentTarget.value)} />
+      </div>
+      <div class="row">
+        <input type="date" aria-label="Data voce" value={day} onInput={(e) => setDay(e.currentTarget.value)} />
+        <select aria-label="Tipo voce" value={kind} onChange={(e) => setKind(e.currentTarget.value as Kind)}>
+          <option value="expense">Uscita</option>
+          <option value="income">Entrata</option>
+        </select>
+        <button type="submit" disabled={!name.trim() || cents === null}>Aggiungi</button>
+      </div>
+    </form>
+  );
+}
+
+export function Mese() {
+  const d = data.value;
+  const start = `${viewMonth.value}-01`;
+  const end = endOfMonth(start);
+  const bal = latestBalance(d);
+  const items = buildItems(d, start, end);
+  const out = outstandingItems(d, end).reduce((s, i) => s + i.amount, 0);
+  const res = residual(d, end);
+  const showBackup = backupDue(d.settings, new Date().toISOString());
+
+  return (
+    <main class="screen">
+      {showBackup ? (
+        <div class="banner">
+          Fai un backup dei dati.{' '}
+          <button class="link" onClick={() => (screen.value = 'impostazioni')}>Apri impostazioni</button>
+        </div>
+      ) : null}
+
+      <header class="monthnav">
+        <button aria-label="Mese precedente" onClick={() => (viewMonth.value = addDays(start, -1).slice(0, 7))}>‹</button>
+        <h2>{monthLabel(viewMonth.value)}</h2>
+        <button aria-label="Mese successivo" onClick={() => (viewMonth.value = addDays(end, 1).slice(0, 7))}>›</button>
+      </header>
+
+      {!bal ? (
+        <section class="card">
+          <h3>Inserisci il saldo</h3>
+          <p>Serve per calcolare quanto ti resta. Leggilo dalla banca e scrivilo qui.</p>
+          <BalanceForm label="Salva" />
+        </section>
+      ) : (
+        <section class="card summary">
+          <div>
+            <small>Saldo al {bal.day.split('-').reverse().join('/')}</small>
+            <strong>{formatEuro(bal.value)}</strong>
+          </div>
+          <div>
+            <small>Ancora da pagare</small>
+            <strong>{formatEuro(out)}</strong>
+          </div>
+          <div class={res !== null && res < 0 ? 'neg' : 'pos'}>
+            <small>Residuo</small>
+            <strong class="big">{formatEuro(res ?? 0)}</strong>
+          </div>
+          <details>
+            <summary>Aggiorna saldo</summary>
+            <BalanceForm label="Aggiorna" />
+          </details>
+        </section>
+      )}
+
+      <ul class="items">
+        {items.map((i) => (
+          <ItemRow key={i.key} item={i} balanceDay={bal?.day} />
+        ))}
+        {items.length === 0 ? <li class="empty">Nessuna voce in questo mese.</li> : null}
+      </ul>
+
+      <AddOneOff />
+    </main>
+  );
+}
