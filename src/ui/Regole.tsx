@@ -73,6 +73,11 @@ export function Regole() {
   }
 
   const num = (v: string) => Math.trunc(Number(v));
+  const weekdayPills = () =>
+    WD_LABEL.map((l, i) => (
+      <label class="pill" key={l}><input type="checkbox" checked={spec.weekdays?.includes(i) ?? false}
+        onChange={() => setSpec({ ...spec, weekdays: toggle(spec.weekdays, i) })} /> {l}</label>
+    ));
 
   return (
     <main class="screen">
@@ -115,64 +120,79 @@ export function Regole() {
             <option value="expense">Uscita</option>
             <option value="income">Entrata</option>
           </select>
-          <label><input type="checkbox" checked={variable} onChange={(e) => setVariable(e.currentTarget.checked)} /> Importo variabile (stima)</label>
+          <label class="check"><input type="checkbox" checked={variable} onChange={(e) => setVariable(e.currentTarget.checked)} /> Importo variabile (stima)</label>
         </div>
-        <div class="row">
-          <select aria-label="Frequenza" value={spec.freq}
-            onChange={(e) => {
-              const freq = e.currentTarget.value as RecurrenceSpec['freq'];
-              setSpec({ freq, interval: 1, ...(freq === 'monthly' ? { monthDay: 1 } : freq === 'yearly' ? { monthDay: 1, months: [1] } : {}) });
-            }}>
-            <option value="daily">Ogni giorno</option>
-            <option value="weekly">Ogni settimana</option>
-            <option value="monthly">Ogni mese</option>
-            <option value="yearly">Ogni anno</option>
-          </select>
-          <input aria-label="Ogni N" type="number" value={spec.interval} onInput={(e) => setSpec({ ...spec, interval: num(e.currentTarget.value) })} />
-        </div>
-        {spec.freq === 'weekly' || (spec.freq === 'monthly' && spec.weekOfMonth?.length) ? (
-          <div class="row chips">
-            {WD_LABEL.map((l, i) => (
-              <label key={l}><input type="checkbox" checked={spec.weekdays?.includes(i) ?? false}
-                onChange={() => setSpec({ ...spec, weekdays: toggle(spec.weekdays, i) })} /> {l}</label>
-            ))}
-          </div>
-        ) : null}
-        {spec.freq === 'monthly' || spec.freq === 'yearly' ? (
-          <div class="row">
-            <select aria-label="Giorno del mese" value={spec.monthDay === undefined ? '' : String(spec.monthDay)}
+        <fieldset class="group">
+          <legend>Quando si ripete</legend>
+          <div class="every">
+            <span>Ogni</span>
+            <input aria-label="Ogni N" type="number" min="1" value={spec.interval} onInput={(e) => setSpec({ ...spec, interval: num(e.currentTarget.value) })} />
+            <select aria-label="Frequenza" value={spec.freq}
               onChange={(e) => {
-                const v = e.currentTarget.value;
-                setSpec({ ...spec, monthDay: v === '' ? undefined : v === 'last' ? 'last' : Number(v), ...(v !== '' ? { weekOfMonth: [], weekdays: [] } : {}) });
+                const freq = e.currentTarget.value as RecurrenceSpec['freq'];
+                setSpec({ freq, interval: spec.interval, ...(freq === 'monthly' ? { monthDay: 1 } : freq === 'yearly' ? { monthDay: 1, months: [1] } : {}) });
               }}>
-              <option value="">(nessun giorno fisso)</option>
-              {Array.from({ length: 28 }, (_, i) => <option key={i} value={i + 1}>{i + 1}</option>)}
-              <option value="last">ultimo giorno del mese</option>
+              <option value="daily">giorno/i</option>
+              <option value="weekly">settimana/e</option>
+              <option value="monthly">mese/i</option>
+              <option value="yearly">anno/i</option>
             </select>
           </div>
-        ) : null}
-        {spec.freq === 'monthly' ? (
-          <div class="row chips">
-            <span>Settimana:</span>
-            {WOM.map(([v, l]) => (
-              <label key={v}><input type="checkbox" checked={spec.weekOfMonth?.includes(v) ?? false}
-                onChange={() => { const w = toggle(spec.weekOfMonth, v); setSpec({ ...spec, weekOfMonth: w, ...(w.length ? { monthDay: undefined } : {}) }); }} /> {l}</label>
-            ))}
+
+          {spec.freq === 'weekly' ? (
+            <div class="sub">
+              <span class="sublabel">Nei giorni</span>
+              <div class="pills">{weekdayPills()}</div>
+            </div>
+          ) : null}
+
+          {spec.freq === 'monthly' || spec.freq === 'yearly' ? (
+            <div class="sub">
+              <span class="sublabel">Giorno del mese</span>
+              <select aria-label="Giorno del mese" value={spec.monthDay === undefined ? '' : String(spec.monthDay)}
+                onChange={(e) => {
+                  const v = e.currentTarget.value;
+                  setSpec({ ...spec, monthDay: v === '' ? undefined : v === 'last' ? 'last' : Number(v), ...(v !== '' ? { weekOfMonth: [], weekdays: [] } : {}) });
+                }}>
+                <option value="">(nessun giorno fisso)</option>
+                {Array.from({ length: 28 }, (_, i) => <option key={i} value={i + 1}>{i + 1}</option>)}
+                <option value="last">ultimo giorno del mese</option>
+              </select>
+            </div>
+          ) : null}
+
+          {spec.freq === 'monthly' ? (
+            <div class="sub">
+              <span class="sublabel">Oppure: ad esempio “la 2ª domenica del mese”</span>
+              <div class="pills">
+                {WOM.map(([v, l]) => (
+                  <label class="pill" key={v}><input type="checkbox" checked={spec.weekOfMonth?.includes(v) ?? false}
+                    onChange={() => { const w = toggle(spec.weekOfMonth, v); setSpec({ ...spec, weekOfMonth: w, ...(w.length ? { monthDay: undefined } : {}) }); }} /> {l}</label>
+                ))}
+              </div>
+              {spec.weekOfMonth?.length ? <div class="pills">{weekdayPills()}</div> : null}
+            </div>
+          ) : null}
+
+          {spec.freq === 'monthly' || spec.freq === 'yearly' ? (
+            <div class="sub">
+              <span class="sublabel">Solo nei mesi <small class="muted">(nessuno = tutti)</small></span>
+              <div class="pills">
+                {MONTH_LABEL.map((l, i) => (
+                  <label class="pill" key={l}><input type="checkbox" checked={spec.months?.includes(i + 1) ?? false}
+                    onChange={() => setSpec({ ...spec, months: toggle(spec.months, i + 1) })} /> {l}</label>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </fieldset>
+        <fieldset class="group">
+          <legend>Periodo</legend>
+          <div class="row dates">
+            <label class="field">Inizio <input aria-label="Inizio" type="date" value={start} onInput={(e) => setStart(e.currentTarget.value)} /></label>
+            <label class="field">Fine <small class="muted">(facoltativa)</small> <input aria-label="Fine" type="date" value={end} onInput={(e) => setEnd(e.currentTarget.value)} /></label>
           </div>
-        ) : null}
-        {spec.freq === 'monthly' || spec.freq === 'yearly' ? (
-          <div class="row chips">
-            <span>Solo nei mesi:</span>
-            {MONTH_LABEL.map((l, i) => (
-              <label key={l}><input type="checkbox" checked={spec.months?.includes(i + 1) ?? false}
-                onChange={() => setSpec({ ...spec, months: toggle(spec.months, i + 1) })} /> {l}</label>
-            ))}
-          </div>
-        ) : null}
-        <div class="row">
-          <label>Inizio <input aria-label="Inizio" type="date" value={start} onInput={(e) => setStart(e.currentTarget.value)} /></label>
-          <label>Fine <input aria-label="Fine" type="date" value={end} onInput={(e) => setEnd(e.currentTarget.value)} /></label>
-        </div>
+        </fieldset>
         <div>
           <small>Prossime date:</small>
           <ul class="preview">
