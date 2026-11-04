@@ -36,8 +36,16 @@ describe('outstandingItems / residual', () => {
   });
   it('esclude pagate, entrate e voci oltre until', () => {
     const d = withBalance();
-    d.oneOffs = [oneOff({ paid: true }), oneOff({ id: 'o2', kind: 'income' }), oneOff({ id: 'o3', day: '2026-12-15' })];
+    d.rules = [mkRule({ rrule: 'FREQ=MONTHLY;BYMONTHDAY=10' })];
+    d.overrides = [{ ruleId: 'r1', day: '2026-11-10', paid: true }];
+    d.oneOffs = [oneOff({ id: 'o2', kind: 'income' }), oneOff({ id: 'o3', day: '2026-12-15' })];
     expect(outstandingItems(d, '2026-11-30')).toHaveLength(0);
+  });
+  it('la spunta su una voce una tantum è solo un promemoria: la spesa conta ancora', () => {
+    const d = withBalance();
+    d.oneOffs = [oneOff({ paid: true })];
+    expect(outstandingItems(d, '2026-11-30')).toHaveLength(1);
+    expect(residual(d, '2026-11-30')).toBe(150000 - 5000);
   });
   it('senza saldo non calcola nulla', () => {
     const d = emptyTestData();

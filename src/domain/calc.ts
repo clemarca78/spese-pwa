@@ -1,5 +1,5 @@
 import { addDays } from './days';
-import { buildItems } from './items';
+import { buildItems, isSettled } from './items';
 import { expandRule } from './recurrence';
 import type { AppData, Balance, Cents, Day, Item, Rule } from './types';
 
@@ -15,7 +15,7 @@ export function outstandingItems(data: AppData, until: Day): Item[] {
   if (!bal) return [];
   // si guarda indietro di 45 giorni per le voci slittate ("ancora da addebitare")
   return buildItems(data, addDays(bal.day, -PENDING_LOOKBACK_DAYS), until).filter((i) => {
-    if (i.kind !== 'expense' || i.skipped || i.paid) return false;
+    if (i.kind !== 'expense' || i.skipped || isSettled(i)) return false;
     if (i.day > bal.day) return true;
     return i.pendingDebit; // già nel saldo, salvo "ancora da addebitare"
   });

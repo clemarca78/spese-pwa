@@ -22,11 +22,11 @@ describe('forecast', () => {
       { day: '2026-11-05', balance: 50000 },
     ]);
   });
-  it('somma le entrate e ignora le voci pagate o saltate', () => {
+  it('somma le entrate; la spunta "pagata" su una voce una tantum non la toglie dalla previsione', () => {
     const d = base();
     d.oneOffs = [oo({ kind: 'income', amount: 200000, day: '2026-11-04' }), oo({ id: 'o2', paid: true })];
     const pts = forecast(d, 2);
-    expect(pts.map((p) => p.balance)).toEqual([100000, 300000, 300000]);
+    expect(pts.map((p) => p.balance)).toEqual([100000, 300000, 250000]);
   });
   it('sottrae le spese varie se attive', () => {
     const d = base();
