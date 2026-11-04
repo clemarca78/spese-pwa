@@ -10,6 +10,10 @@ import { backupDue } from '../storage/backup';
 import { screen } from './Nav';
 
 export const viewMonth = signal(todayLocal().slice(0, 7));
+type Filtro = 'tutte' | 'da-pagare' | 'pagate';
+const FILTRI: Array<[Filtro, string]> = [['tutte', 'Tutte'], ['da-pagare', 'Da pagare'], ['pagate', 'Pagate']];
+export const filtro = signal<Filtro>('tutte');
+const shortDate = (d: string) => `${d.slice(8)}/${d.slice(5, 7)}`;
 /** id della voce una tantum in modifica (null = modulo di aggiunta) */
 export const editingOneOff = signal<string | null>(null);
 
@@ -36,14 +40,14 @@ function BalanceForm({ label }: { label: string }) {
 
 function ItemRow({ item, balanceDay }: { item: Item; balanceDay?: string }) {
   return (
-    <li class={`item ${item.kind} ${item.paid ? 'done' : ''} ${item.skipped ? 'skipped' : ''}`}>
+    <li class={`item dated ${item.kind} ${item.paid ? 'done' : ''} ${item.skipped ? 'skipped' : ''}`}>
       <input
         type="checkbox"
         aria-label={`Pagata: ${item.name}`}
         checked={item.paid}
         onChange={(e) => void setPaid(item, e.currentTarget.checked)}
       />
-      <span class="day">{item.day.slice(8)}</span>
+      <span class="day">{shortDate(item.day)}</span>
       <span class="name">
         {item.name}
         {item.estimated ? <small> stima</small> : null}
@@ -131,7 +135,8 @@ export function Mese() {
   const start = `${viewMonth.value}-01`;
   const end = endOfMonth(start);
   const bal = latestBalance(d);
-  const items = buildItems(d, start, end);
+  const all = buildItems(d, start, end);
+  const items = all.filter((i) => (filtro.value === 'tutte' ? true : filtro.value === 'pagate' ? i.paid : !i.paid));
   const out = outstandingItems(d, end).reduce((s, i) => s + i.amount, 0);
   const res = residual(d, end);
   const showBackup = backupDue(d.settings, new Date().toISOString());
@@ -178,11 +183,17 @@ export function Mese() {
         </section>
       )}
 
+      <div class="row filters" role="group" aria-label="Filtro voci">
+        {FILTRI.map(([v, l]) => (
+          <button key={v} class={`chip ${filtro.value === v ? 'active' : ''}`} aria-pressed={filtro.value === v} onClick={() => (filtro.value = v)}>{l}</button>
+        ))}
+      </div>
+
       <ul class="items">
         {items.map((i) => (
           <ItemRow key={i.key} item={i} balanceDay={bal?.day} />
         ))}
-        {items.length === 0 ? <li class="empty">Nessuna voce in questo mese.</li> : null}
+        {items.length === 0 ? <li class="empty">{all.length === 0 ? 'Nessuna voce in questo mese.' : 'Nessuna voce con questo filtro.'}</li> : null}
       </ul>
 
       <AddOneOff key={editingOneOff.value ?? 'new'} />

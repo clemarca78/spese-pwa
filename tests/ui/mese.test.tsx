@@ -1,13 +1,14 @@
 import { cleanup, fireEvent, render } from '@testing-library/preact';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { data } from '../../src/state/store';
-import { Mese, viewMonth } from '../../src/ui/Mese';
+import { Mese, filtro, viewMonth } from '../../src/ui/Mese';
 import { emptyData } from '../../src/storage/backup';
 
 const text = (c: Element) => (c.textContent ?? '').replace(/[  ]/g, ' ');
 
 beforeEach(() => {
   viewMonth.value = '2026-11';
+  filtro.value = 'tutte';
 });
 afterEach(cleanup);
 
@@ -57,6 +58,27 @@ describe('Mese', () => {
     const added = data.value.oneOffs.find((o) => o.name === 'spesa');
     expect(added?.paid).toBe(true);
     expect(text(container)).toContain('1.440,00'); // 1.500,00 - 50,00 - 10,00
+  });
+  it('mostra la data completa (giorno/mese) di ogni voce', () => {
+    withBalance();
+    const { container } = render(<Mese />);
+    expect(container.querySelector('.item .day')?.textContent).toBe('10/11');
+  });
+  it('il filtro separa le voci da pagare da quelle già pagate', () => {
+    withBalance();
+    const d = data.value;
+    data.value = { ...d, oneOffs: [...d.oneOffs, { id: 'o2', name: 'fatta', kind: 'expense', amount: 1000, day: '2026-11-05', paid: true }] };
+    const { getByText, queryByText } = render(<Mese />);
+    expect(queryByText('bolletta')).toBeTruthy();
+    expect(queryByText('fatta')).toBeTruthy();
+    fireEvent.click(getByText('Da pagare'));
+    expect(queryByText('bolletta')).toBeTruthy();
+    expect(queryByText('fatta')).toBeNull();
+    fireEvent.click(getByText('Pagate'));
+    expect(queryByText('bolletta')).toBeNull();
+    expect(queryByText('fatta')).toBeTruthy();
+    fireEvent.click(getByText('Tutte'));
+    expect(queryByText('bolletta')).toBeTruthy();
   });
   it('modifica una voce aggiunta a mano', () => {
     withBalance();
