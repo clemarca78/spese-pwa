@@ -54,9 +54,9 @@ export function Previsione() {
         <h3>Giorni critici</h3>
         <ul class="items">
           {drops.map((x) => (
-            <li class="item" key={x.day}>
-              <span class="name" data-testid="drop-day">{fmtDay(x.day)}</span>
-              <span class="amount neg">{formatEuro(x.delta)}</span>
+            <li class="drop" key={x.day}>
+              <span data-testid="drop-day">{fmtDay(x.day)}</span>
+              <span class="neg">{formatEuro(x.delta)}</span>
             </li>
           ))}
           {drops.length === 0 ? <li class="empty">Nessuna uscita prevista.</li> : null}

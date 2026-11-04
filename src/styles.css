@@ -56,3 +56,5 @@ button.link { background: none; color: var(--accent); min-height: 0; padding: 0;
 .chips label { flex: 0 0 auto; }
 .preview { list-style: none; padding: 0; margin: 4px 0; display: flex; gap: 8px; flex-wrap: wrap; color: var(--muted); }
 .item .pending { grid-column: 3 / -1; color: var(--muted); }
+.drop { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.drop:last-child { border-bottom: 0; }
