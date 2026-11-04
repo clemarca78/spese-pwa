@@ -25,6 +25,7 @@ function nextDates(rule: Rule, n: number): string[] {
 const EMPTY_SPEC: RecurrenceSpec = { freq: 'monthly', interval: 1, monthDay: 1 };
 
 export function Regole() {
+  const [view, setView] = useState<'list' | 'form'>('list');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [kind, setKind] = useState<Kind>('expense');
@@ -47,13 +48,13 @@ export function Regole() {
 
   function reset() {
     setEditingId(null); setName(''); setAmount(''); setVariable(false); setKind('expense');
-    setSpec(EMPTY_SPEC); setStart(todayLocal()); setEnd(''); setError(null);
+    setSpec(EMPTY_SPEC); setStart(todayLocal()); setEnd(''); setError(null); setView('list');
   }
 
   function edit(r: Rule) {
     setEditingId(r.id); setName(r.name); setKind(r.kind);
     setAmount((r.amount / 100).toFixed(2).replace('.', ',')); setVariable(r.variable);
-    setSpec(parseRrule(r.rrule)); setStart(r.start); setEnd(r.end ?? ''); setError(null);
+    setSpec(parseRrule(r.rrule)); setStart(r.start); setEnd(r.end ?? ''); setError(null); setView('form');
   }
 
   function save() {
@@ -79,9 +80,11 @@ export function Regole() {
         onChange={() => setSpec({ ...spec, weekdays: toggle(spec.weekdays, i) })} /> {l}</label>
     ));
 
-  return (
+  if (view === 'list') {
+    return (
     <main class="screen">
       <h2>Regole</h2>
+      <button onClick={() => setView('form')}>Nuova regola</button>
       <ul class="items">
         {data.value.rules.map((r) => (
           <li class={`item rule ${r.active ? '' : 'skipped'}`} key={r.id}>
@@ -108,7 +111,13 @@ export function Regole() {
         ))}
         {data.value.rules.length === 0 ? <li class="empty">Nessuna regola ancora.</li> : null}
       </ul>
+    </main>
+    );
+  }
 
+  return (
+    <main class="screen">
+      <button class="link" onClick={reset}>‹ Torna alle regole</button>
       <section class="card">
         <h3>{editingId ? 'Modifica regola' : 'Nuova regola'}</h3>
         <div class="row">

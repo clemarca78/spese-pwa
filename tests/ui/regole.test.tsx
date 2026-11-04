@@ -10,6 +10,7 @@ beforeEach(() => {
 afterEach(cleanup);
 
 function fill(r: ReturnType<typeof render>, name: string, amount: string) {
+  fireEvent.click(r.getByText('Nuova regola'));
   fireEvent.input(r.getByLabelText('Nome regola'), { target: { value: name } });
   fireEvent.input(r.getByLabelText('Importo regola'), { target: { value: amount } });
 }
@@ -43,6 +44,29 @@ describe('Regole', () => {
     fireEvent.click(r.getByLabelText('Lun'));
     fireEvent.click(r.getByText('Salva regola'));
     expect(data.value.rules[0].rrule).toBe('FREQ=MONTHLY;BYDAY=MO;BYSETPOS=1');
+  });
+  it('separa l elenco dal modulo: Nuova regola apre il modulo, Torna alle regole chiude', () => {
+    const r = render(<Regole />);
+    expect(r.queryByLabelText('Nome regola')).toBeNull();
+    fireEvent.click(r.getByText('Nuova regola'));
+    expect(r.getByLabelText('Nome regola')).toBeTruthy();
+    fireEvent.click(r.getByText('‹ Torna alle regole'));
+    expect(r.queryByLabelText('Nome regola')).toBeNull();
+  });
+  it('dopo il salvataggio torna alla lista con la nuova regola', () => {
+    const r = render(<Regole />);
+    fill(r, 'Mutuo', '600,00');
+    fireEvent.click(r.getByText('Salva regola'));
+    expect(r.queryByLabelText('Nome regola')).toBeNull();
+    expect(r.getByText(/Mutuo/)).toBeTruthy();
+  });
+  it('Modifica apre il modulo compilato', () => {
+    const d = emptyData();
+    d.rules = [{ id: 'r1', name: 'Palestra', kind: 'expense', amount: 2500, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=10', start: '2026-01-01', active: true }];
+    data.value = d;
+    const r = render(<Regole />);
+    fireEvent.click(r.getByText('Modifica'));
+    expect((r.getByLabelText('Nome regola') as HTMLInputElement).value).toBe('Palestra');
   });
   it('elimina una regola e le sue correzioni solo dopo la conferma', () => {
     const d = emptyData();
