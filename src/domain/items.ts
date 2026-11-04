@@ -40,6 +40,3 @@ export function buildItems(data: AppData, from: Day, to: Day): Item[] {
   }
   return items.sort((a, b) => a.day.localeCompare(b.day) || a.name.localeCompare(b.name));
 }
-
-/** "Pagata" toglie dal calcolo solo le voci delle regole; sulle voci una tantum è un promemoria. */
-export const isSettled = (i: Item): boolean => i.paid && i.oneOffId === undefined;

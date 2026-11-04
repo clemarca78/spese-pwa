@@ -46,6 +46,18 @@ describe('Mese', () => {
     expect(data.value.overrides[0]).toMatchObject({ ruleId: 'm', day: '2026-11-01', pendingDebit: true });
     expect(text(container)).toContain('900,00'); // residuo: 1.500,00 - 600,00
   });
+  it('"Già pagata" crea la voce già spuntata e il residuo scala comunque', () => {
+    withBalance();
+    const { getByLabelText, getByText, container } = render(<Mese />);
+    fireEvent.input(getByLabelText('Nome voce'), { target: { value: 'spesa' } });
+    fireEvent.input(getByLabelText('Importo voce'), { target: { value: '10,00' } });
+    fireEvent.input(getByLabelText('Data voce'), { target: { value: '2026-11-12' } });
+    fireEvent.click(getByLabelText('Già pagata'));
+    fireEvent.click(getByText('Aggiungi'));
+    const added = data.value.oneOffs.find((o) => o.name === 'spesa');
+    expect(added?.paid).toBe(true);
+    expect(text(container)).toContain('1.440,00'); // 1.500,00 - 50,00 - 10,00
+  });
   it('modifica una voce aggiunta a mano', () => {
     withBalance();
     const { getByLabelText, getByText } = render(<Mese />);

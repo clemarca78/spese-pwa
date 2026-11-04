@@ -1,5 +1,5 @@
 import { addDays } from './days';
-import { buildItems, isSettled } from './items';
+import { buildItems } from './items';
 import { expandRule } from './recurrence';
 import type { AppData, Balance, Cents, Day, Item, Rule } from './types';
 
@@ -9,13 +9,13 @@ export function latestBalance(data: AppData): Balance | undefined {
   return [...data.balances].sort((a, b) => a.day.localeCompare(b.day)).at(-1);
 }
 
-/** Uscite ancora da pagare fino a `until` (vedi spec §6). Vuoto se manca il saldo. */
+/** Uscite ancora da sottrarre al saldo fino a `until` (spec §6). La spunta "pagata" è solo un promemoria e non conta. Vuoto se manca il saldo. */
 export function outstandingItems(data: AppData, until: Day): Item[] {
   const bal = latestBalance(data);
   if (!bal) return [];
   // si guarda indietro di 45 giorni per le voci slittate ("ancora da addebitare")
   return buildItems(data, addDays(bal.day, -PENDING_LOOKBACK_DAYS), until).filter((i) => {
-    if (i.kind !== 'expense' || i.skipped || isSettled(i)) return false;
+    if (i.kind !== 'expense' || i.skipped) return false;
     if (i.day > bal.day) return true;
     return i.pendingDebit; // già nel saldo, salvo "ancora da addebitare"
   });

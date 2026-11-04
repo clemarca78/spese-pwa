@@ -22,7 +22,7 @@ describe('forecast', () => {
       { day: '2026-11-05', balance: 50000 },
     ]);
   });
-  it('somma le entrate; la spunta "pagata" su una voce una tantum non la toglie dalla previsione', () => {
+  it('somma le entrate; la spunta "pagata" non toglie la voce dalla previsione', () => {
     const d = base();
     d.oneOffs = [oo({ kind: 'income', amount: 200000, day: '2026-11-04' }), oo({ id: 'o2', paid: true })];
     const pts = forecast(d, 2);

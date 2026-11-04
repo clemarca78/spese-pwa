@@ -1,6 +1,6 @@
 import { PENDING_LOOKBACK_DAYS, latestBalance } from './calc';
 import { addDays } from './days';
-import { buildItems, isSettled } from './items';
+import { buildItems } from './items';
 import type { AppData, Cents, Day, ForecastPoint } from './types';
 import { estimateDailyVarie } from './varie';
 
@@ -11,13 +11,13 @@ export function forecast(data: AppData, horizonDays: number): ForecastPoint[] {
   const end = addDays(bal.day, horizonDays);
   const byDay = new Map<Day, Cents>();
   for (const it of buildItems(data, addDays(bal.day, 1), end)) {
-    if (isSettled(it) || it.skipped) continue;
+    if (it.skipped) continue;
     byDay.set(it.day, (byDay.get(it.day) ?? 0) + (it.kind === 'income' ? it.amount : -it.amount));
   }
   // voci slittate prima del saldo e non ancora addebitate: pesano sul primo giorno futuro
   const firstDay = addDays(bal.day, 1);
   for (const it of buildItems(data, addDays(bal.day, -PENDING_LOOKBACK_DAYS), bal.day)) {
-    if (!it.pendingDebit || isSettled(it) || it.skipped) continue;
+    if (!it.pendingDebit || it.skipped) continue;
     byDay.set(firstDay, (byDay.get(firstDay) ?? 0) + (it.kind === 'income' ? it.amount : -it.amount));
   }
   const varie = data.settings.varieEnabled ? estimateDailyVarie(data) : 0;

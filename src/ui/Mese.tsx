@@ -48,7 +48,7 @@ function ItemRow({ item, balanceDay }: { item: Item; balanceDay?: string }) {
         {item.name}
         {item.estimated ? <small> stima</small> : null}
       </span>
-      {item.kind === 'expense' && balanceDay && item.day <= balanceDay && !item.paid ? (
+      {item.kind === 'expense' && balanceDay && item.day <= balanceDay ? (
         <label class="pending">
           <input type="checkbox" aria-label={`Ancora da addebitare: ${item.name}`} checked={item.pendingDebit}
             onChange={(e) => void setPendingDebit(item, e.currentTarget.checked)} />
@@ -87,6 +87,7 @@ function AddOneOff() {
   const [amount, setAmount] = useState(editing ? plain(editing.amount) : '');
   const [day, setDay] = useState(editing?.day ?? todayLocal());
   const [kind, setKind] = useState<Kind>(editing?.kind ?? 'expense');
+  const [paid, setAlreadyPaid] = useState(editing?.paid ?? false);
   const cents = parseEuro(amount);
   return (
     <form
@@ -95,11 +96,12 @@ function AddOneOff() {
         e.preventDefault();
         if (!name.trim() || cents === null) return;
         if (editing) {
-          void updateOneOff(editing.id, { name: name.trim(), kind, amount: cents, day });
+          void updateOneOff(editing.id, { name: name.trim(), kind, amount: cents, day, paid });
           editingOneOff.value = null;
           return;
         }
-        void addOneOff({ name: name.trim(), kind, amount: cents, day, paid: false }).then(() => {
+        void addOneOff({ name: name.trim(), kind, amount: cents, day, paid }).then(() => {
+          setAlreadyPaid(false);
           setName('');
           setAmount('');
         });
@@ -116,6 +118,7 @@ function AddOneOff() {
           <option value="expense">Uscita</option>
           <option value="income">Entrata</option>
         </select>
+        <label class="check"><input type="checkbox" aria-label="Già pagata" checked={paid} onChange={(e) => setAlreadyPaid(e.currentTarget.checked)} /> Già pagata</label>
         <button type="submit" disabled={!name.trim() || cents === null}>{editing ? 'Salva modifiche' : 'Aggiungi'}</button>
         {editing ? <button type="button" class="link" onClick={() => (editingOneOff.value = null)}>Annulla</button> : null}
       </div>
