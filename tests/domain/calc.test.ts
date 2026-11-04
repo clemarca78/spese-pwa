@@ -12,57 +12,72 @@ function withBalance() {
   return d;
 }
 
+const END = '2026-11-30';
+const TODAY = '2026-11-20';
+
 describe('outstandingItems / residual', () => {
-  it('conta le uscite dopo il saldo e calcola il residuo', () => {
+  it('le uscite non pagate dopo il saldo sono "da pagare" ma non toccano il residuo', () => {
     const d = withBalance();
     d.oneOffs = [oneOff({})];
-    expect(outstandingItems(d, '2026-11-30')).toHaveLength(1);
-    expect(residual(d, '2026-11-30')).toBe(150000 - 5000);
+    expect(outstandingItems(d, END)).toHaveLength(1);
+    expect(residual(d, END, TODAY)).toBe(150000);
+  });
+  it('una spesa spuntata dopo il saldo scala dal residuo e non è più "da pagare"', () => {
+    const d = withBalance();
+    d.oneOffs = [oneOff({ paid: true })];
+    d.rules = [mkRule({ amount: 1000, rrule: 'FREQ=MONTHLY;BYMONTHDAY=12' })];
+    d.overrides = [{ ruleId: 'r1', day: '2026-11-12', paid: true }];
+    expect(outstandingItems(d, END)).toHaveLength(0);
+    expect(residual(d, END, TODAY)).toBe(150000 - 5000 - 1000);
+  });
+  it('una spesa spuntata con data futura (dopo oggi) o già nel saldo non scala', () => {
+    const d = withBalance();
+    d.oneOffs = [oneOff({ id: 'f', day: '2026-11-25', paid: true }), oneOff({ id: 's', day: '2026-11-03', paid: true })];
+    expect(residual(d, END, TODAY)).toBe(150000);
+  });
+  it('il residuo non guarda oltre until', () => {
+    const d = withBalance();
+    d.oneOffs = [oneOff({ day: '2026-11-10', paid: true })];
+    expect(residual(d, '2026-11-09', TODAY)).toBe(150000);
+    expect(residual(d, END, TODAY)).toBe(150000 - 5000);
   });
   it('esclude il giorno del saldo, salvo pendingDebit', () => {
     const d = withBalance();
     d.rules = [mkRule({ rrule: 'FREQ=MONTHLY;BYMONTHDAY=3' })];
-    expect(outstandingItems(d, '2026-11-30')).toHaveLength(0);
+    expect(outstandingItems(d, END)).toHaveLength(0);
     d.overrides = [{ ruleId: 'r1', day: '2026-11-03', pendingDebit: true }];
-    expect(outstandingItems(d, '2026-11-30')).toHaveLength(1);
+    expect(outstandingItems(d, END)).toHaveLength(1);
   });
-  it('conta una voce slittata PRIMA del giorno del saldo se marcata ancora da addebitare', () => {
+  it('una voce slittata PRIMA del saldo e "ancora da addebitare" è da pagare e scala dal residuo', () => {
     const d = withBalance();
     d.rules = [mkRule({ amount: 60000, rrule: 'FREQ=MONTHLY;BYMONTHDAY=1' })];
-    expect(outstandingItems(d, '2026-11-30')).toHaveLength(0);
+    expect(outstandingItems(d, END)).toHaveLength(0);
+    expect(residual(d, END, TODAY)).toBe(150000);
     d.overrides = [{ ruleId: 'r1', day: '2026-11-01', pendingDebit: true }];
-    expect(outstandingItems(d, '2026-11-30')).toHaveLength(1);
-    expect(residual(d, '2026-11-30')).toBe(150000 - 60000);
+    expect(outstandingItems(d, END)).toHaveLength(1);
+    expect(residual(d, END, TODAY)).toBe(150000 - 60000);
   });
-  it('esclude entrate e voci oltre until', () => {
+  it('esclude entrate e voci oltre until dalle uscite da pagare', () => {
     const d = withBalance();
     d.oneOffs = [oneOff({ id: 'o2', kind: 'income' }), oneOff({ id: 'o3', day: '2026-12-15' })];
-    expect(outstandingItems(d, '2026-11-30')).toHaveLength(0);
+    expect(outstandingItems(d, END)).toHaveLength(0);
   });
-  it('la spunta "pagata" è solo un promemoria: la spesa conta ancora, per voci una tantum e di regole', () => {
-    const d = withBalance();
-    d.oneOffs = [oneOff({ paid: true })];
-    d.rules = [mkRule({ amount: 1000, rrule: 'FREQ=MONTHLY;BYMONTHDAY=10' })];
-    d.overrides = [{ ruleId: 'r1', day: '2026-11-10', paid: true }];
-    expect(outstandingItems(d, '2026-11-30')).toHaveLength(2);
-    expect(residual(d, '2026-11-30')).toBe(150000 - 5000 - 1000);
-  });
-  it('un entrata segnata come incassata dopo il saldo aumenta il residuo; non incassata o già nel saldo no', () => {
+  it('un entrata incassata dopo il saldo (fino a oggi) aumenta il residuo; le altre no', () => {
     const d = withBalance();
     d.oneOffs = [
       oneOff({ id: 'i1', kind: 'income', amount: 20000, day: '2026-11-05', paid: true }),
       oneOff({ id: 'i2', kind: 'income', amount: 7000, day: '2026-11-06', paid: false }),
       oneOff({ id: 'i3', kind: 'income', amount: 9000, day: '2026-11-03', paid: true }),
+      oneOff({ id: 'i4', kind: 'income', amount: 4000, day: '2026-11-28', paid: true }),
     ];
-    expect(residual(d, '2026-11-30')).toBe(150000 + 20000);
-    expect(residual(d, '2026-11-04')).toBe(150000);
+    expect(residual(d, END, TODAY)).toBe(150000 + 20000);
   });
   it('senza saldo non calcola nulla', () => {
     const d = emptyTestData();
     d.oneOffs = [oneOff({})];
     expect(latestBalance(d)).toBeUndefined();
     expect(outstandingItems(d, '2026-11-30')).toEqual([]);
-    expect(residual(d, '2026-11-30')).toBeNull();
+    expect(residual(d, END, TODAY)).toBeNull();
   });
   it('usa il saldo più recente', () => {
     const d = withBalance();

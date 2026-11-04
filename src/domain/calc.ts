@@ -9,31 +9,37 @@ export function latestBalance(data: AppData): Balance | undefined {
   return [...data.balances].sort((a, b) => a.day.localeCompare(b.day)).at(-1);
 }
 
-/** Uscite ancora da sottrarre al saldo fino a `until` (spec §6). La spunta "pagata" è solo un promemoria e non conta. Vuoto se manca il saldo. */
+/** Uscite "ancora da pagare" fino a `until`: non spuntate dopo il saldo, più quelle slittate e ancora da addebitare. */
 export function outstandingItems(data: AppData, until: Day): Item[] {
   const bal = latestBalance(data);
   if (!bal) return [];
   // si guarda indietro di 45 giorni per le voci slittate ("ancora da addebitare")
   return buildItems(data, addDays(bal.day, -PENDING_LOOKBACK_DAYS), until).filter((i) => {
     if (i.kind !== 'expense' || i.skipped) return false;
-    if (i.day > bal.day) return true;
+    if (i.day > bal.day) return !i.paid;
     return i.pendingDebit; // già nel saldo, salvo "ancora da addebitare"
   });
 }
 
-/** Entrate segnate come incassate dopo il giorno del saldo: il saldo non le contiene ancora. */
-export function receivedIncomes(data: AppData, until: Day): Item[] {
-  const bal = latestBalance(data);
-  if (!bal) return [];
-  return buildItems(data, addDays(bal.day, 1), until).filter((i) => i.kind === 'income' && i.paid && !i.skipped);
-}
-
-export function residual(data: AppData, until: Day): Cents | null {
+/**
+ * Residuo = saldo − uscite già pagate dopo il saldo + entrate già incassate dopo il saldo.
+ * Contano solo le voci spuntate con data fino a `min(until, today)`; le uscite slittate
+ * "ancora da addebitare" scalano perché il saldo non le contiene ancora.
+ */
+export function residual(data: AppData, until: Day, today: Day): Cents | null {
   const bal = latestBalance(data);
   if (!bal) return null;
-  const spent = outstandingItems(data, until).reduce((s, i) => s + i.amount, 0);
-  const received = receivedIncomes(data, until).reduce((s, i) => s + i.amount, 0);
-  return bal.value - spent + received;
+  const cutoff = until < today ? until : today;
+  let total = bal.value;
+  for (const i of buildItems(data, addDays(bal.day, -PENDING_LOOKBACK_DAYS), cutoff)) {
+    if (i.skipped) continue;
+    if (i.day > bal.day) {
+      if (i.paid) total += i.kind === 'income' ? i.amount : -i.amount;
+    } else if (i.kind === 'expense' && i.pendingDebit) {
+      total -= i.amount;
+    }
+  }
+  return total;
 }
 
 /** Uscite fisse attive, occorrenze nei prossimi 365 giorni × importo ÷ 12. */

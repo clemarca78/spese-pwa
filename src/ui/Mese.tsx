@@ -138,7 +138,7 @@ export function Mese() {
   const all = buildItems(d, start, end);
   const items = all.filter((i) => (filtro.value === 'tutte' ? true : filtro.value === 'pagate' ? i.paid : !i.paid));
   const out = outstandingItems(d, end).reduce((s, i) => s + i.amount, 0);
-  const res = residual(d, end);
+  const res = residual(d, end, todayLocal());
   const showBackup = backupDue(d.settings, new Date().toISOString());
 
   return (
