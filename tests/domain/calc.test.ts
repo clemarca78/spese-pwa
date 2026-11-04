@@ -47,6 +47,16 @@ describe('outstandingItems / residual', () => {
     expect(outstandingItems(d, '2026-11-30')).toHaveLength(2);
     expect(residual(d, '2026-11-30')).toBe(150000 - 5000 - 1000);
   });
+  it('un entrata segnata come incassata dopo il saldo aumenta il residuo; non incassata o già nel saldo no', () => {
+    const d = withBalance();
+    d.oneOffs = [
+      oneOff({ id: 'i1', kind: 'income', amount: 20000, day: '2026-11-05', paid: true }),
+      oneOff({ id: 'i2', kind: 'income', amount: 7000, day: '2026-11-06', paid: false }),
+      oneOff({ id: 'i3', kind: 'income', amount: 9000, day: '2026-11-03', paid: true }),
+    ];
+    expect(residual(d, '2026-11-30')).toBe(150000 + 20000);
+    expect(residual(d, '2026-11-04')).toBe(150000);
+  });
   it('senza saldo non calcola nulla', () => {
     const d = emptyTestData();
     d.oneOffs = [oneOff({})];

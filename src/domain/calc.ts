@@ -21,10 +21,19 @@ export function outstandingItems(data: AppData, until: Day): Item[] {
   });
 }
 
+/** Entrate segnate come incassate dopo il giorno del saldo: il saldo non le contiene ancora. */
+export function receivedIncomes(data: AppData, until: Day): Item[] {
+  const bal = latestBalance(data);
+  if (!bal) return [];
+  return buildItems(data, addDays(bal.day, 1), until).filter((i) => i.kind === 'income' && i.paid && !i.skipped);
+}
+
 export function residual(data: AppData, until: Day): Cents | null {
   const bal = latestBalance(data);
   if (!bal) return null;
-  return bal.value - outstandingItems(data, until).reduce((s, i) => s + i.amount, 0);
+  const spent = outstandingItems(data, until).reduce((s, i) => s + i.amount, 0);
+  const received = receivedIncomes(data, until).reduce((s, i) => s + i.amount, 0);
+  return bal.value - spent + received;
 }
 
 /** Uscite fisse attive, occorrenze nei prossimi 365 giorni × importo ÷ 12. */

@@ -80,6 +80,19 @@ describe('Mese', () => {
     fireEvent.click(getByText('Tutte'));
     expect(queryByText('bolletta')).toBeTruthy();
   });
+  it('per le entrate la casella si chiama "Già incassata" e aumenta il residuo', () => {
+    withBalance();
+    const { getByLabelText, getByText, container } = render(<Mese />);
+    fireEvent.change(getByLabelText('Tipo voce'), { target: { value: 'income' } });
+    expect(getByLabelText('Già incassata')).toBeTruthy();
+    fireEvent.input(getByLabelText('Nome voce'), { target: { value: 'rimborso' } });
+    fireEvent.input(getByLabelText('Importo voce'), { target: { value: '100,00' } });
+    fireEvent.input(getByLabelText('Data voce'), { target: { value: '2026-11-12' } });
+    fireEvent.click(getByLabelText('Già incassata'));
+    fireEvent.click(getByText('Aggiungi'));
+    expect(text(container)).toContain('1.550,00'); // 1.500,00 - 50,00 + 100,00
+    expect(getByLabelText('Incassata: rimborso')).toBeTruthy();
+  });
   it('modifica una voce aggiunta a mano', () => {
     withBalance();
     const { getByLabelText, getByText } = render(<Mese />);

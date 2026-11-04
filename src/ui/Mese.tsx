@@ -43,7 +43,7 @@ function ItemRow({ item, balanceDay }: { item: Item; balanceDay?: string }) {
     <li class={`item dated ${item.kind} ${item.paid ? 'done' : ''} ${item.skipped ? 'skipped' : ''}`}>
       <input
         type="checkbox"
-        aria-label={`Pagata: ${item.name}`}
+        aria-label={`${item.kind === 'income' ? 'Incassata' : 'Pagata'}: ${item.name}`}
         checked={item.paid}
         onChange={(e) => void setPaid(item, e.currentTarget.checked)}
       />
@@ -122,7 +122,7 @@ function AddOneOff() {
           <option value="expense">Uscita</option>
           <option value="income">Entrata</option>
         </select>
-        <label class="check"><input type="checkbox" aria-label="Già pagata" checked={paid} onChange={(e) => setAlreadyPaid(e.currentTarget.checked)} /> Già pagata</label>
+        <label class="check"><input type="checkbox" aria-label={kind === 'income' ? 'Già incassata' : 'Già pagata'} checked={paid} onChange={(e) => setAlreadyPaid(e.currentTarget.checked)} /> {kind === 'income' ? 'Già incassata' : 'Già pagata'}</label>
         <button type="submit" disabled={!name.trim() || cents === null}>{editing ? 'Salva modifiche' : 'Aggiungi'}</button>
         {editing ? <button type="button" class="link" onClick={() => (editingOneOff.value = null)}>Annulla</button> : null}
       </div>
