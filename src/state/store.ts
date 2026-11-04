@@ -70,6 +70,23 @@ export function setItemAmount(item: Item, amount: Cents): Promise<void> {
   return mutate((d) => upsertOverride(d, item, { amount }));
 }
 
+export function updateOneOff(id: string, patch: Partial<Omit<OneOff, 'id'>>): Promise<void> {
+  return mutate((d) => ({ ...d, oneOffs: d.oneOffs.map((o) => (o.id === id ? { ...o, ...patch } : o)) }));
+}
+
+export function deleteOneOff(id: string): Promise<void> {
+  return mutate((d) => ({ ...d, oneOffs: d.oneOffs.filter((o) => o.id !== id) }));
+}
+
+/** Elimina la regola e le correzioni (importi, spunte) fatte sulle sue occorrenze. */
+export function deleteRule(id: string): Promise<void> {
+  return mutate((d) => ({
+    ...d,
+    rules: d.rules.filter((r) => r.id !== id),
+    overrides: d.overrides.filter((o) => o.ruleId !== id),
+  }));
+}
+
 export function addOneOff(o: Omit<OneOff, 'id'>): Promise<void> {
   return mutate((d) => ({ ...d, oneOffs: [...d.oneOffs, { ...o, id: crypto.randomUUID() }] }));
 }

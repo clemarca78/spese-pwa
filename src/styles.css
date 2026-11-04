@@ -58,3 +58,7 @@ button.link { background: none; color: var(--accent); min-height: 0; padding: 0;
 .item .pending { grid-column: 3 / -1; color: var(--muted); }
 .drop { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
 .drop:last-child { border-bottom: 0; }
+.item .actions { grid-column: 3 / -1; display: flex; gap: 16px; }
+button.link.danger { color: var(--neg); }
+.item .amount { grid-column: 4; grid-row: 1; }
+.item .pending, .item .actions { grid-column: 3 / -1; }

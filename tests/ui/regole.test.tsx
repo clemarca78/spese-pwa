@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render } from '@testing-library/preact';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { data } from '../../src/state/store';
 import { emptyData } from '../../src/storage/backup';
 import { Regole } from '../../src/ui/Regole';
@@ -43,6 +43,24 @@ describe('Regole', () => {
     fireEvent.click(r.getByLabelText('Lun'));
     fireEvent.click(r.getByText('Salva regola'));
     expect(data.value.rules[0].rrule).toBe('FREQ=MONTHLY;BYDAY=MO;BYSETPOS=1');
+  });
+  it('elimina una regola e le sue correzioni solo dopo la conferma', () => {
+    const d = emptyData();
+    d.rules = [
+      { id: 'r1', name: 'Palestra', kind: 'expense', amount: 2500, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=10', start: '2026-01-01', active: true },
+      { id: 'r2', name: 'Corso', kind: 'expense', amount: 1000, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=12', start: '2026-01-01', active: true },
+    ];
+    d.overrides = [{ ruleId: 'r1', day: '2026-11-10', paid: true }, { ruleId: 'r2', day: '2026-11-12', paid: true }];
+    data.value = d;
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const r = render(<Regole />);
+    fireEvent.click(r.getByLabelText('Elimina: Palestra'));
+    expect(data.value.rules).toHaveLength(2);
+    confirm.mockReturnValue(true);
+    fireEvent.click(r.getByLabelText('Elimina: Palestra'));
+    expect(data.value.rules.map((x) => x.id)).toEqual(['r2']);
+    expect(data.value.overrides.map((o) => o.ruleId)).toEqual(['r2']);
+    confirm.mockRestore();
   });
   it('elenca le regole esistenti e permette di disattivarle', () => {
     const d = emptyData();

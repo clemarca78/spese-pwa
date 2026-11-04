@@ -5,11 +5,13 @@ import { addDays, endOfMonth, todayLocal } from '../domain/days';
 import { buildItems } from '../domain/items';
 import { formatEuro, parseEuro } from '../domain/money';
 import type { Item, Kind } from '../domain/types';
-import { addBalance, addOneOff, data, setItemAmount, setPaid, setPendingDebit } from '../state/store';
+import { addBalance, addOneOff, data, deleteOneOff, setItemAmount, setPaid, setPendingDebit, updateOneOff } from '../state/store';
 import { backupDue } from '../storage/backup';
 import { screen } from './Nav';
 
 export const viewMonth = signal(todayLocal().slice(0, 7));
+/** id della voce una tantum in modifica (null = modulo di aggiunta) */
+export const editingOneOff = signal<string | null>(null);
 
 const plain = (c: number) => (c / 100).toFixed(2).replace('.', ',');
 const MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
@@ -64,15 +66,27 @@ function ItemRow({ item, balanceDay }: { item: Item; balanceDay?: string }) {
           if (c !== null && c !== item.amount) void setItemAmount(item, c);
         }}
       />
+      {item.oneOffId ? (
+        <div class="actions">
+          <button class="link" aria-label={`Modifica: ${item.name}`} onClick={() => (editingOneOff.value = item.oneOffId as string)}>Modifica</button>
+          <button class="link danger" aria-label={`Elimina: ${item.name}`}
+            onClick={() => {
+              if (!window.confirm(`Eliminare "${item.name}"?`)) return;
+              if (editingOneOff.value === item.oneOffId) editingOneOff.value = null;
+              void deleteOneOff(item.oneOffId as string);
+            }}>Elimina</button>
+        </div>
+      ) : null}
     </li>
   );
 }
 
 function AddOneOff() {
-  const [name, setName] = useState('');
-  const [amount, setAmount] = useState('');
-  const [day, setDay] = useState(todayLocal());
-  const [kind, setKind] = useState<Kind>('expense');
+  const editing = data.value.oneOffs.find((o) => o.id === editingOneOff.value);
+  const [name, setName] = useState(editing?.name ?? '');
+  const [amount, setAmount] = useState(editing ? plain(editing.amount) : '');
+  const [day, setDay] = useState(editing?.day ?? todayLocal());
+  const [kind, setKind] = useState<Kind>(editing?.kind ?? 'expense');
   const cents = parseEuro(amount);
   return (
     <form
@@ -80,13 +94,18 @@ function AddOneOff() {
       onSubmit={(e) => {
         e.preventDefault();
         if (!name.trim() || cents === null) return;
+        if (editing) {
+          void updateOneOff(editing.id, { name: name.trim(), kind, amount: cents, day });
+          editingOneOff.value = null;
+          return;
+        }
         void addOneOff({ name: name.trim(), kind, amount: cents, day, paid: false }).then(() => {
           setName('');
           setAmount('');
         });
       }}
     >
-      <h3>Aggiungi una voce</h3>
+      <h3>{editing ? 'Modifica la voce' : 'Aggiungi una voce'}</h3>
       <div class="row">
         <input placeholder="Nome" aria-label="Nome voce" value={name} onInput={(e) => setName(e.currentTarget.value)} />
         <input inputMode="decimal" placeholder="Importo" aria-label="Importo voce" value={amount} onInput={(e) => setAmount(e.currentTarget.value)} />
@@ -97,7 +116,8 @@ function AddOneOff() {
           <option value="expense">Uscita</option>
           <option value="income">Entrata</option>
         </select>
-        <button type="submit" disabled={!name.trim() || cents === null}>Aggiungi</button>
+        <button type="submit" disabled={!name.trim() || cents === null}>{editing ? 'Salva modifiche' : 'Aggiungi'}</button>
+        {editing ? <button type="button" class="link" onClick={() => (editingOneOff.value = null)}>Annulla</button> : null}
       </div>
     </form>
   );
@@ -162,7 +182,7 @@ export function Mese() {
         {items.length === 0 ? <li class="empty">Nessuna voce in questo mese.</li> : null}
       </ul>
 
-      <AddOneOff />
+      <AddOneOff key={editingOneOff.value ?? 'new'} />
     </main>
   );
 }

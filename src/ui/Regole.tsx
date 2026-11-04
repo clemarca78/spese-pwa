@@ -4,7 +4,7 @@ import { formatEuro, parseEuro } from '../domain/money';
 import { expandRule } from '../domain/recurrence';
 import { buildRrule, parseRrule, validateSpec, type RecurrenceSpec } from '../domain/ruleBuilder';
 import type { Kind, Rule } from '../domain/types';
-import { data, mutate } from '../state/store';
+import { data, deleteRule, mutate } from '../state/store';
 
 const WD_LABEL = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 const MONTH_LABEL = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
@@ -90,7 +90,15 @@ export function Regole() {
               {r.name}
               <small> {formatEuro(r.amount)}{r.variable ? ' (variabile)' : ''}{nextDates(r, 1)[0] ? ` · prossima ${fmtDay(nextDates(r, 1)[0])}` : ''}</small>
             </span>
-            <button class="link" onClick={() => edit(r)}>Modifica</button>
+            <span class="actions">
+              <button class="link" onClick={() => edit(r)}>Modifica</button>
+              <button class="link danger" aria-label={`Elimina: ${r.name}`}
+                onClick={() => {
+                  if (!window.confirm(`Eliminare la regola "${r.name}"? Spariranno anche le sue correzioni mensili.`)) return;
+                  if (editingId === r.id) reset();
+                  void deleteRule(r.id);
+                }}>Elimina</button>
+            </span>
           </li>
         ))}
         {data.value.rules.length === 0 ? <li class="empty">Nessuna regola ancora.</li> : null}
