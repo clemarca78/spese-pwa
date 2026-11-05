@@ -30,32 +30,47 @@ function nextIncomeDay(data: AppData, today: Day): Day | undefined {
 }
 
 /**
- * Residuo = saldo − uscite già pagate dopo il saldo + entrate già incassate dopo il saldo
- *           − uscite non ancora pagate (dopo il saldo) fino alla prossima entrata prevista.
- * Le voci spuntate contano solo con data fino a `min(until, today)`; le uscite slittate
- * "ancora da addebitare" scalano perché il saldo non le contiene ancora. Senza entrate in
- * arrivo, le uscite non pagate contano fino a `until`.
+ * Residuo = saldo − uscite già pagate dopo il saldo + entrate già incassate dopo il saldo.
+ * Contano solo le voci spuntate con data fino a `min(until, today)`; le uscite slittate
+ * "ancora da addebitare" scalano perché il saldo non le contiene ancora.
  */
 export function residual(data: AppData, until: Day, today: Day): Cents | null {
   const bal = latestBalance(data);
   if (!bal) return null;
   const cutoff = until < today ? until : today;
-  const nextIncome = nextIncomeDay(data, today);
   let total = bal.value;
   for (const i of buildItems(data, addDays(bal.day, -PENDING_LOOKBACK_DAYS), until)) {
     if (i.skipped) continue;
     if (i.day > bal.day) {
-      const sign = i.kind === 'income' ? 1 : -1;
-      if (i.paid) {
-        if (i.day <= cutoff) total += sign * i.amount;
-      } else if (i.kind === 'expense' && (nextIncome === undefined || i.day < nextIncome)) {
-        total -= i.amount;
-      }
+      if (i.paid && i.day <= cutoff) total += i.kind === 'income' ? i.amount : -i.amount;
     } else if (i.kind === 'expense' && i.pendingDebit) {
       total -= i.amount;
     }
   }
   return total;
+}
+
+export interface Available {
+  value: Cents;
+  /** Giorno della prossima entrata prevista: gli addebiti contati sono quelli prima di questo giorno. */
+  upTo?: Day;
+  debits: Item[];
+}
+
+/**
+ * Disponibile da spendere = residuo − addebiti automatici ancora da scalare dal conto,
+ * cioè non spuntati, dopo il saldo e prima della prossima entrata prevista (o fino a `until`).
+ * Le uscite senza addebito automatico le decide l'utente e non contano.
+ */
+export function available(data: AppData, until: Day, today: Day): Available | null {
+  const bal = latestBalance(data);
+  const res = residual(data, until, today);
+  if (!bal || res === null) return null;
+  const upTo = nextIncomeDay(data, today);
+  const debits = buildItems(data, addDays(bal.day, 1), until).filter(
+    (i) => i.kind === 'expense' && i.autoDebit && !i.paid && !i.skipped && (upTo === undefined || i.day < upTo),
+  );
+  return { value: res - debits.reduce((s, i) => s + i.amount, 0), ...(upTo ? { upTo } : {}), debits };
 }
 
 /** Uscite fisse attive, occorrenze nei prossimi 365 giorni × importo ÷ 12. */

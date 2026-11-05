@@ -4,6 +4,7 @@ import { data } from '../../src/state/store';
 import { Mese, filtro, viewMonth } from '../../src/ui/Mese';
 import { emptyData } from '../../src/storage/backup';
 
+const tid = (c: Element, id: string) => c.querySelector(`[data-testid="${id}"]`)?.textContent ?? '';
 const text = (c: Element) => (c.textContent ?? '').replace(/[  ]/g, ' ');
 
 beforeEach(() => {
@@ -31,7 +32,8 @@ describe('Mese', () => {
     const { container } = render(<Mese />);
     const t = text(container);
     expect(t).toContain('50,00'); // ancora da pagare
-    expect(container.querySelector('.big')?.textContent).toContain('1.450,00'); // bolletta (10/11) non ancora pagata e prima di qualsiasi entrata
+    expect(tid(container, 'residuo')).toContain('1.500,00'); // nulla di pagato dopo il saldo
+    expect(tid(container, 'disponibile')).toContain('1.500,00'); // la bolletta non è un addebito automatico
     expect(t).toMatch(/residuo/i);
   });
   it('la spunta "pagata" aggiorna la voce', () => {
@@ -40,12 +42,27 @@ describe('Mese', () => {
     fireEvent.click(getByLabelText('Pagata: bolletta'));
     expect(data.value.oneOffs[0].paid).toBe(true);
   });
-  it('spuntare una spesa già inserita non fa risalire il residuo', () => {
+  it('spuntare una spesa già inserita fa scendere il residuo, non risalire', () => {
     withBalance();
     const { getByLabelText, container } = render(<Mese />);
-    expect(container.querySelector('.big')?.textContent).toContain('1.450,00');
+    expect(tid(container, 'residuo')).toContain('1.500,00');
     fireEvent.click(getByLabelText('Pagata: bolletta'));
-    expect(container.querySelector('.big')?.textContent).toContain('1.450,00');
+    expect(tid(container, 'residuo')).toContain('1.450,00');
+  });
+  it('il disponibile sottrae gli addebiti automatici in arrivo e li mostra', () => {
+    const d = emptyData();
+    d.balances = [{ value: 150000, day: '2026-11-03' }];
+    d.settings.lastBackupAt = new Date().toISOString();
+    d.rules = [
+      { id: 't', name: 'Tim', kind: 'expense', amount: 2789, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=25', start: '2026-01-01', active: true, autoDebit: true },
+      { id: 'd', name: 'Dentista', kind: 'expense', amount: 8500, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=26', start: '2026-01-01', active: true },
+    ];
+    data.value = d;
+    const { container, getByText } = render(<Mese />);
+    expect(tid(container, 'residuo')).toContain('1.500,00');
+    expect(tid(container, 'addebiti')).toContain('27,89');
+    expect(tid(container, 'disponibile')).toContain('1.472,11');
+    expect(getByText('addebito automatico')).toBeTruthy();
   });
   it('permette di segnare una voce slittata prima del saldo come ancora da addebitare', () => {
     const d = emptyData();
@@ -68,7 +85,7 @@ describe('Mese', () => {
     fireEvent.click(getByText('Aggiungi'));
     const added = data.value.oneOffs.find((o) => o.name === 'spesa');
     expect(added?.paid).toBe(true);
-    expect(text(container)).toContain('1.440,00'); // 1.500,00 - 50,00 bolletta - 10,00 già pagati
+    expect(text(container)).toContain('1.490,00'); // 1.500,00 - 10,00 già pagati
   });
   it('mostra la data completa (giorno/mese) di ogni voce', () => {
     withBalance();
@@ -101,7 +118,7 @@ describe('Mese', () => {
     fireEvent.input(getByLabelText('Data voce'), { target: { value: '2026-11-12' } });
     fireEvent.click(getByLabelText('Già incassata'));
     fireEvent.click(getByText('Aggiungi'));
-    expect(text(container)).toContain('1.550,00'); // 1.500,00 - 50,00 bolletta + 100,00 già incassati
+    expect(text(container)).toContain('1.600,00'); // 1.500,00 + 100,00 già incassati
     expect(getByLabelText('Incassata: rimborso')).toBeTruthy();
   });
   it('modifica una voce aggiunta a mano', () => {

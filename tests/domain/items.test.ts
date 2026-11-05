@@ -62,3 +62,13 @@ describe('buildItems', () => {
     expect(items[0]).toMatchObject({ oneOffId: 'o1', paid: true, estimated: false });
   });
 });
+
+describe('autoDebit', () => {
+  it('le voci delle regole con addebito automatico lo portano con sé', () => {
+    const d = emptyTestData();
+    d.rules = [mkRule({ autoDebit: true }), mkRule({ id: 'r2' })];
+    const items = buildItems(d, '2026-11-01', '2026-11-30');
+    expect(items.find((i) => i.ruleId === 'r1')?.autoDebit).toBe(true);
+    expect(items.find((i) => i.ruleId === 'r2')?.autoDebit).toBeFalsy();
+  });
+});

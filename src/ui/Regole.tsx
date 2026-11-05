@@ -31,6 +31,7 @@ export function Regole() {
   const [kind, setKind] = useState<Kind>('expense');
   const [amount, setAmount] = useState('');
   const [variable, setVariable] = useState(false);
+  const [autoDebit, setAutoDebit] = useState(false);
   const [spec, setSpec] = useState<RecurrenceSpec>(EMPTY_SPEC);
   const [start, setStart] = useState(todayLocal());
   const [end, setEnd] = useState('');
@@ -47,13 +48,13 @@ export function Regole() {
   })();
 
   function reset() {
-    setEditingId(null); setName(''); setAmount(''); setVariable(false); setKind('expense');
+    setEditingId(null); setName(''); setAmount(''); setVariable(false); setAutoDebit(false); setKind('expense');
     setSpec(EMPTY_SPEC); setStart(todayLocal()); setEnd(''); setError(null); setView('list');
   }
 
   function edit(r: Rule) {
     setEditingId(r.id); setName(r.name); setKind(r.kind);
-    setAmount((r.amount / 100).toFixed(2).replace('.', ',')); setVariable(r.variable);
+    setAmount((r.amount / 100).toFixed(2).replace('.', ',')); setVariable(r.variable); setAutoDebit(r.autoDebit ?? false);
     setSpec(parseRrule(r.rrule)); setStart(r.start); setEnd(r.end ?? ''); setError(null); setView('form');
   }
 
@@ -65,6 +66,7 @@ export function Regole() {
       id: editingId ?? crypto.randomUUID(),
       name: name.trim(), kind, amount: cents as number, variable,
       rrule: buildRrule(spec), start, ...(end ? { end } : {}), active: true,
+      ...(autoDebit && kind === 'expense' ? { autoDebit: true } : {}),
     };
     void mutate((d) => ({
       ...d,
@@ -96,7 +98,7 @@ export function Regole() {
             <span class="day">{r.kind === 'income' ? '+' : '−'}</span>
             <span class="name">
               {r.name}
-              <small> {formatEuro(r.amount)}{r.variable ? ' (variabile)' : ''}{nextDates(r, 1)[0] ? ` · prossima ${fmtDay(nextDates(r, 1)[0])}` : ''}</small>
+              <small> {formatEuro(r.amount)}{r.variable ? ' (variabile)' : ''}{r.autoDebit ? ' · addebito automatico' : ''}{nextDates(r, 1)[0] ? ` · prossima ${fmtDay(nextDates(r, 1)[0])}` : ''}</small>
             </span>
             <span class="actions">
               <button class="link" onClick={() => edit(r)}>Modifica</button>
@@ -131,6 +133,11 @@ export function Regole() {
           </select>
           <label class="check"><input type="checkbox" checked={variable} onChange={(e) => setVariable(e.currentTarget.checked)} /> Importo variabile (stima)</label>
         </div>
+        {kind === 'expense' ? (
+          <div class="row">
+            <label class="check"><input type="checkbox" aria-label="Addebito automatico sul conto" checked={autoDebit} onChange={(e) => setAutoDebit(e.currentTarget.checked)} /> Addebito automatico sul conto <small class="muted">(so che in quella data scala il saldo)</small></label>
+          </div>
+        ) : null}
         <fieldset class="group">
           <legend>Quando si ripete</legend>
           <div class="every">

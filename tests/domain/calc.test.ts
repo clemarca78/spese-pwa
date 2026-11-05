@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { latestBalance, monthlyFixedCost, outstandingItems, residual } from '../../src/domain/calc';
+import { available, latestBalance, monthlyFixedCost, outstandingItems, residual } from '../../src/domain/calc';
 import type { OneOff } from '../../src/domain/types';
 import { emptyTestData, mkRule } from './fixtures';
 
@@ -16,37 +16,13 @@ const END = '2026-11-30';
 const TODAY = '2026-11-20';
 
 describe('outstandingItems / residual', () => {
-  it('senza entrate in arrivo, il residuo sottrae le uscite non pagate fino a until', () => {
+  it('le uscite non pagate dopo il saldo sono da pagare ma non toccano il residuo', () => {
     const d = withBalance();
     d.oneOffs = [oneOff({}), oneOff({ id: 'late', day: '2026-12-05' })];
     expect(outstandingItems(d, END)).toHaveLength(1);
-    expect(residual(d, END, TODAY)).toBe(150000 - 5000);
+    expect(residual(d, END, TODAY)).toBe(150000);
   });
-  it('sottrae le uscite non pagate solo fino alla prossima entrata prevista', () => {
-    const d = withBalance();
-    d.oneOffs = [
-      oneOff({ id: 'paid', day: '2026-11-05', amount: 1107, paid: true }),
-      oneOff({ id: 'a', day: '2026-11-08', amount: 5000 }),
-      oneOff({ id: 'b', day: '2026-11-10', amount: 3000 }),
-      oneOff({ id: 'inc', kind: 'income', day: '2026-11-20', amount: 20000 }),
-      oneOff({ id: 'c', day: '2026-11-25', amount: 9000 }),
-    ];
-    expect(residual(d, END, '2026-11-05')).toBe(150000 - 1107 - 5000 - 3000);
-  });
-  it('una spesa non pagata con data già passata (dopo il saldo) conta ancora', () => {
-    const d = withBalance();
-    d.oneOffs = [oneOff({ day: '2026-11-04', amount: 4000 }), oneOff({ id: 'inc', kind: 'income', day: '2026-11-20', amount: 1 })];
-    expect(residual(d, END, '2026-11-05')).toBe(150000 - 4000);
-  });
-  it('un entrata già incassata non è la prossima entrata', () => {
-    const d = withBalance();
-    d.oneOffs = [
-      oneOff({ id: 'inc', kind: 'income', day: '2026-11-06', amount: 1000, paid: true }),
-      oneOff({ id: 'a', day: '2026-11-08', amount: 5000 }),
-    ];
-    expect(residual(d, END, '2026-11-07')).toBe(150000 + 1000 - 5000);
-  });
-  it('una spesa spuntata dopo il saldo scala dal residuo e non è più "da pagare"', () => {
+  it('una spesa spuntata dopo il saldo scala dal residuo e non è più da pagare', () => {
     const d = withBalance();
     d.oneOffs = [oneOff({ paid: true })];
     d.rules = [mkRule({ amount: 1000, rrule: 'FREQ=MONTHLY;BYMONTHDAY=12' })];
@@ -72,7 +48,7 @@ describe('outstandingItems / residual', () => {
     d.overrides = [{ ruleId: 'r1', day: '2026-11-03', pendingDebit: true }];
     expect(outstandingItems(d, END)).toHaveLength(1);
   });
-  it('una voce slittata PRIMA del saldo e "ancora da addebitare" è da pagare e scala dal residuo', () => {
+  it('una voce slittata PRIMA del saldo e ancora da addebitare è da pagare e scala dal residuo', () => {
     const d = withBalance();
     d.rules = [mkRule({ amount: 60000, rrule: 'FREQ=MONTHLY;BYMONTHDAY=1' })];
     expect(outstandingItems(d, END)).toHaveLength(0);
@@ -86,7 +62,7 @@ describe('outstandingItems / residual', () => {
     d.oneOffs = [oneOff({ id: 'o2', kind: 'income' }), oneOff({ id: 'o3', day: '2026-12-15' })];
     expect(outstandingItems(d, END)).toHaveLength(0);
   });
-  it('un entrata incassata dopo il saldo (fino a oggi) aumenta il residuo; le altre no', () => {
+  it('una entrata incassata dopo il saldo (fino a oggi) aumenta il residuo; le altre no', () => {
     const d = withBalance();
     d.oneOffs = [
       oneOff({ id: 'i1', kind: 'income', amount: 20000, day: '2026-11-05', paid: true }),
@@ -96,6 +72,53 @@ describe('outstandingItems / residual', () => {
     ];
     expect(residual(d, END, TODAY)).toBe(150000 + 20000);
   });
+});
+
+describe('available (disponibile da spendere)', () => {
+  function withRules() {
+    const d = withBalance();
+    d.rules = [
+      mkRule({ id: 'tim', name: 'Tim', amount: 2789, rrule: 'FREQ=MONTHLY;BYMONTHDAY=8', autoDebit: true }),
+      mkRule({ id: 'dent', name: 'Dentista', amount: 8500, rrule: 'FREQ=MONTHLY;BYMONTHDAY=10' }),
+      mkRule({ id: 'inps', name: 'INPS', kind: 'income', amount: 20380, rrule: 'FREQ=MONTHLY;BYMONTHDAY=20' }),
+      mkRule({ id: 'ass', name: 'Assicurazione', amount: 3695, rrule: 'FREQ=MONTHLY;BYMONTHDAY=27', autoDebit: true }),
+    ];
+    return d;
+  }
+  it('sottrae al residuo solo gli addebiti automatici fino alla prossima entrata', () => {
+    const d = withRules();
+    const a = available(d, END, '2026-11-05');
+    expect(a).toMatchObject({ value: 150000 - 2789, upTo: '2026-11-20' });
+    expect(a?.debits.map((i) => i.name)).toEqual(['Tim']);
+  });
+  it('le uscite non automatiche (decido io) non riducono il disponibile', () => {
+    const d = withRules();
+    d.rules = d.rules.filter((r) => r.id !== 'tim');
+    expect(available(d, END, '2026-11-05')?.value).toBe(150000);
+  });
+  it('un addebito già spuntato non viene sottratto due volte', () => {
+    const d = withRules();
+    d.overrides = [{ ruleId: 'tim', day: '2026-11-08', paid: true }];
+    expect(available(d, END, '2026-11-09')?.value).toBe(150000 - 2789); // solo tramite il residuo
+  });
+  it('parte dal residuo (spese pagate) e senza entrate in arrivo conta fino a until', () => {
+    const d = withRules();
+    d.rules = d.rules.filter((r) => r.id !== 'inps');
+    d.oneOffs = [oneOff({ id: 'sp', day: '2026-11-05', amount: 1107, paid: true })];
+    const a = available(d, END, '2026-11-05');
+    expect(a?.value).toBe(150000 - 1107 - 2789 - 3695);
+    expect(a?.upTo).toBeUndefined();
+  });
+  it('un addebito automatico già scaduto dopo il saldo e non spuntato pesa ancora', () => {
+    const d = withRules();
+    expect(available(d, END, '2026-11-12')?.value).toBe(150000 - 2789);
+  });
+  it('senza saldo è null', () => {
+    expect(available(emptyTestData(), END, TODAY)).toBeNull();
+  });
+});
+
+describe('saldo', () => {
   it('senza saldo non calcola nulla', () => {
     const d = emptyTestData();
     d.oneOffs = [oneOff({})];

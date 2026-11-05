@@ -48,6 +48,7 @@ function checkRule(r: unknown): Rule {
   day(o.start, `regola ${name}`);
   if (o.end !== undefined) day(o.end, `regola ${name}`);
   if (typeof o.variable !== 'boolean' || typeof o.active !== 'boolean') fail('regola incompleta');
+  if (o.autoDebit !== undefined && typeof o.autoDebit !== 'boolean') fail(`regola ${name}: addebito automatico non valido`);
   checkRrule(o.rrule as string, name);
   return o as unknown as Rule;
 }

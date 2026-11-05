@@ -13,6 +13,8 @@ export interface Rule {
   start: Day;
   end?: Day;
   active: boolean;
+  /** Addebito diretto sul conto: sappiamo che in quella data scala il saldo. */
+  autoDebit?: boolean;
 }
 export interface Override {
   ruleId: string;
@@ -61,6 +63,7 @@ export interface Item {
   paid: boolean;
   skipped: boolean;
   pendingDebit: boolean;
+  autoDebit?: boolean;
 }
 export interface ForecastPoint {
   day: Day;
