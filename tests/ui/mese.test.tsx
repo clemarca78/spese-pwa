@@ -31,7 +31,7 @@ describe('Mese', () => {
     const { container } = render(<Mese />);
     const t = text(container);
     expect(t).toContain('50,00'); // ancora da pagare
-    expect(container.querySelector('.big')?.textContent).toContain('1.500,00'); // nulla di pagato: residuo = saldo
+    expect(container.querySelector('.big')?.textContent).toContain('1.450,00'); // bolletta (10/11) non ancora pagata e prima di qualsiasi entrata
     expect(t).toMatch(/residuo/i);
   });
   it('la spunta "pagata" aggiorna la voce', () => {
@@ -40,10 +40,10 @@ describe('Mese', () => {
     fireEvent.click(getByLabelText('Pagata: bolletta'));
     expect(data.value.oneOffs[0].paid).toBe(true);
   });
-  it('spuntare una spesa già inserita fa scendere il residuo, non risalire', () => {
+  it('spuntare una spesa già inserita non fa risalire il residuo', () => {
     withBalance();
     const { getByLabelText, container } = render(<Mese />);
-    expect(container.querySelector('.big')?.textContent).toContain('1.500,00');
+    expect(container.querySelector('.big')?.textContent).toContain('1.450,00');
     fireEvent.click(getByLabelText('Pagata: bolletta'));
     expect(container.querySelector('.big')?.textContent).toContain('1.450,00');
   });
@@ -68,7 +68,7 @@ describe('Mese', () => {
     fireEvent.click(getByText('Aggiungi'));
     const added = data.value.oneOffs.find((o) => o.name === 'spesa');
     expect(added?.paid).toBe(true);
-    expect(text(container)).toContain('1.490,00'); // 1.500,00 - 10,00 già pagati
+    expect(text(container)).toContain('1.440,00'); // 1.500,00 - 50,00 bolletta - 10,00 già pagati
   });
   it('mostra la data completa (giorno/mese) di ogni voce', () => {
     withBalance();
@@ -101,7 +101,7 @@ describe('Mese', () => {
     fireEvent.input(getByLabelText('Data voce'), { target: { value: '2026-11-12' } });
     fireEvent.click(getByLabelText('Già incassata'));
     fireEvent.click(getByText('Aggiungi'));
-    expect(text(container)).toContain('1.600,00'); // 1.500,00 + 100,00 già incassati
+    expect(text(container)).toContain('1.550,00'); // 1.500,00 - 50,00 bolletta + 100,00 già incassati
     expect(getByLabelText('Incassata: rimborso')).toBeTruthy();
   });
   it('modifica una voce aggiunta a mano', () => {

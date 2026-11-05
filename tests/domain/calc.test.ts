@@ -16,11 +16,35 @@ const END = '2026-11-30';
 const TODAY = '2026-11-20';
 
 describe('outstandingItems / residual', () => {
-  it('le uscite non pagate dopo il saldo sono "da pagare" ma non toccano il residuo', () => {
+  it('senza entrate in arrivo, il residuo sottrae le uscite non pagate fino a until', () => {
     const d = withBalance();
-    d.oneOffs = [oneOff({})];
+    d.oneOffs = [oneOff({}), oneOff({ id: 'late', day: '2026-12-05' })];
     expect(outstandingItems(d, END)).toHaveLength(1);
-    expect(residual(d, END, TODAY)).toBe(150000);
+    expect(residual(d, END, TODAY)).toBe(150000 - 5000);
+  });
+  it('sottrae le uscite non pagate solo fino alla prossima entrata prevista', () => {
+    const d = withBalance();
+    d.oneOffs = [
+      oneOff({ id: 'paid', day: '2026-11-05', amount: 1107, paid: true }),
+      oneOff({ id: 'a', day: '2026-11-08', amount: 5000 }),
+      oneOff({ id: 'b', day: '2026-11-10', amount: 3000 }),
+      oneOff({ id: 'inc', kind: 'income', day: '2026-11-20', amount: 20000 }),
+      oneOff({ id: 'c', day: '2026-11-25', amount: 9000 }),
+    ];
+    expect(residual(d, END, '2026-11-05')).toBe(150000 - 1107 - 5000 - 3000);
+  });
+  it('una spesa non pagata con data già passata (dopo il saldo) conta ancora', () => {
+    const d = withBalance();
+    d.oneOffs = [oneOff({ day: '2026-11-04', amount: 4000 }), oneOff({ id: 'inc', kind: 'income', day: '2026-11-20', amount: 1 })];
+    expect(residual(d, END, '2026-11-05')).toBe(150000 - 4000);
+  });
+  it('un entrata già incassata non è la prossima entrata', () => {
+    const d = withBalance();
+    d.oneOffs = [
+      oneOff({ id: 'inc', kind: 'income', day: '2026-11-06', amount: 1000, paid: true }),
+      oneOff({ id: 'a', day: '2026-11-08', amount: 5000 }),
+    ];
+    expect(residual(d, END, '2026-11-07')).toBe(150000 + 1000 - 5000);
   });
   it('una spesa spuntata dopo il saldo scala dal residuo e non è più "da pagare"', () => {
     const d = withBalance();
