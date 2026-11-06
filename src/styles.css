@@ -84,3 +84,4 @@ button.link.danger { color: var(--neg); }
 .late-section h3 { margin: 16px 0 4px; font-size: 1rem; }
 .filters { gap: 6px; }
 .filters .chip { padding: 8px 4px; }
+.auto-mark { text-align: center; color: var(--muted); font-size: 1.2rem; }

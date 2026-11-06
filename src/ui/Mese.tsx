@@ -49,12 +49,16 @@ function ItemRow({ item, arretrato }: { item: Item; arretrato?: boolean }) {
   const label = arretrato ? `${item.name} ${fullDate}` : item.name;
   return (
     <li class={`item dated ${arretrato ? 'late' : ''} ${item.kind} ${item.paid ? 'done' : ''} ${item.skipped ? 'skipped' : ''}`}>
-      <input
-        type="checkbox"
-        aria-label={`${item.kind === 'income' ? 'Incassata' : 'Pagata'}: ${label}`}
-        checked={item.paid}
-        onChange={(e) => void setPaid(item, e.currentTarget.checked)}
-      />
+      {item.autoDebit ? (
+        <span class="auto-mark" aria-hidden="true">↻</span>
+      ) : (
+        <input
+          type="checkbox"
+          aria-label={`${item.kind === 'income' ? 'Incassata' : 'Pagata'}: ${label}`}
+          checked={item.paid}
+          onChange={(e) => void setPaid(item, e.currentTarget.checked)}
+        />
+      )}
       <span class="day">{arretrato ? `${shortDate(item.day)}/${item.day.slice(2, 4)}` : shortDate(item.day)}</span>
       <span class="name">
         {item.name}
