@@ -59,7 +59,7 @@ function ItemRow({ item, arretrato }: { item: Item; arretrato?: boolean }) {
       <span class="name">
         {item.name}
         {item.estimated ? <small> stima</small> : null}
-        {item.autoDebit ? <small> addebito automatico</small> : null}
+        {item.autoDebit ? <small> {item.kind === 'income' ? 'accredito' : 'addebito'} automatico</small> : null}
       </span>
       <input
         class="amount"

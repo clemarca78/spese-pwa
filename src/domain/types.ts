@@ -13,7 +13,7 @@ export interface Rule {
   start: Day;
   end?: Day;
   active: boolean;
-  /** Addebito diretto sul conto: alla scadenza risulta già pagata. */
+  /** Addebito (uscita) o accredito (entrata) automatico sul conto: alla data risulta già pagato/incassato. */
   autoDebit?: boolean;
 }
 export interface Override {

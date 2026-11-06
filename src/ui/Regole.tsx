@@ -22,6 +22,7 @@ function nextDates(rule: Rule, n: number): string[] {
   return expandRule(rule, from, addDays(from, 366 * 5)).slice(0, n);
 }
 
+const autoLabel = (k: Kind) => (k === 'income' ? 'Accredito automatico sul conto' : 'Addebito automatico sul conto');
 const EMPTY_SPEC: RecurrenceSpec = { freq: 'monthly', interval: 1, monthDay: 1 };
 
 export function Regole() {
@@ -66,7 +67,7 @@ export function Regole() {
       id: editingId ?? crypto.randomUUID(),
       name: name.trim(), kind, amount: cents as number, variable,
       rrule: buildRrule(spec), start, ...(end ? { end } : {}), active: true,
-      ...(autoDebit && kind === 'expense' ? { autoDebit: true } : {}),
+      ...(autoDebit ? { autoDebit: true } : {}),
     };
     void mutate((d) => ({
       ...d,
@@ -98,7 +99,7 @@ export function Regole() {
             <span class="day">{r.kind === 'income' ? '+' : '−'}</span>
             <span class="name">
               {r.name}
-              <small> {formatEuro(r.amount)}{r.variable ? ' (variabile)' : ''}{r.autoDebit ? ' · addebito automatico' : ''}{nextDates(r, 1)[0] ? ` · prossima ${fmtDay(nextDates(r, 1)[0])}` : ''}</small>
+              <small> {formatEuro(r.amount)}{r.variable ? ' (variabile)' : ''}{r.autoDebit ? ` · ${r.kind === 'income' ? 'accredito' : 'addebito'} automatico` : ''}{nextDates(r, 1)[0] ? ` · prossima ${fmtDay(nextDates(r, 1)[0])}` : ''}</small>
             </span>
             <span class="actions">
               <button class="link" onClick={() => edit(r)}>Modifica</button>
@@ -133,11 +134,9 @@ export function Regole() {
           </select>
           <label class="check"><input type="checkbox" checked={variable} onChange={(e) => setVariable(e.currentTarget.checked)} /> Importo variabile (stima)</label>
         </div>
-        {kind === 'expense' ? (
-          <div class="row">
-            <label class="check"><input type="checkbox" aria-label="Addebito automatico sul conto" checked={autoDebit} onChange={(e) => setAutoDebit(e.currentTarget.checked)} /> Addebito automatico sul conto <small class="muted">(alla scadenza risulta già pagata)</small></label>
-          </div>
-        ) : null}
+        <div class="row">
+          <label class="check"><input type="checkbox" aria-label={autoLabel(kind)} checked={autoDebit} onChange={(e) => setAutoDebit(e.currentTarget.checked)} /> {autoLabel(kind)} <small class="muted">({kind === 'income' ? 'alla data risulta già incassata' : 'alla scadenza risulta già pagata'})</small></label>
+        </div>
         <fieldset class="group">
           <legend>Quando si ripete</legend>
           <div class="every">

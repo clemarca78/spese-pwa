@@ -77,6 +77,14 @@ describe('Regole', () => {
     fireEvent.click(r.getByText('Modifica'));
     expect((r.getByLabelText('Addebito automatico sul conto') as HTMLInputElement).checked).toBe(true);
   });
+  it('per un entrata la casella si chiama Accredito automatico sul conto', () => {
+    const r = render(<Regole />);
+    fill(r, 'INPS', '203,80');
+    fireEvent.change(r.getByLabelText('Tipo regola'), { target: { value: 'income' } });
+    fireEvent.click(r.getByLabelText('Accredito automatico sul conto'));
+    fireEvent.click(r.getByText('Salva regola'));
+    expect(data.value.rules[0]).toMatchObject({ kind: 'income', autoDebit: true });
+  });
   it('elimina una regola e le sue correzioni solo dopo la conferma', () => {
     const d = emptyData();
     d.rules = [

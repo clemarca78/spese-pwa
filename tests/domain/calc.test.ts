@@ -128,6 +128,21 @@ describe('addebito automatico nel residuo', () => {
   });
 });
 
+describe('accredito automatico nel conto', () => {
+  const inps = () => mkRule({ id: 'inps', name: 'INPS', kind: 'income', amount: 20380, rrule: 'FREQ=MONTHLY;BYMONTHDAY=20', autoDebit: true });
+  it('si somma al conto alla data di accredito, senza spuntare', () => {
+    const d = withBalance();
+    d.rules = [inps()];
+    expect(residual(d, '2026-11-19', '2026-11-19')).toBe(150000);
+    expect(residual(d, '2026-11-21', '2026-11-21')).toBe(150000 + 20380);
+  });
+  it('senza accredito automatico non si somma finché non lo spunti', () => {
+    const d = withBalance();
+    d.rules = [{ ...inps(), autoDebit: false }];
+    expect(residual(d, '2026-11-21', '2026-11-21')).toBe(150000);
+  });
+});
+
 describe('available (disponibile da spendere)', () => {
   function withRules() {
     const d = withBalance();
