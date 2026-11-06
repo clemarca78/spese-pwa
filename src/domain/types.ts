@@ -74,7 +74,7 @@ export interface Item {
   paidAt?: string;
   skipped: boolean;
   autoDebit?: boolean;
-  /** Automatica e a importo fisso: l'importo non si modifica dall'elenco. */
+  /** Importo fisso (regola non variabile o voce inserita): non si modifica dall'elenco. */
   locked?: boolean;
 }
 export interface ForecastPoint {
