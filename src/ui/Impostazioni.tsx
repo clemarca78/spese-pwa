@@ -80,6 +80,19 @@ export function Impostazioni() {
       </section>
 
       <section class="card">
+        <h3>Stipendio</h3>
+        <div class="row">
+          <label>Giorno dello stipendio (1-28){' '}
+            <input type="number" min="1" max="28" aria-label="Giorno dello stipendio" value={s.payDay ?? 10}
+              onInput={(e) => {
+                const v = Math.trunc(Number(e.currentTarget.value));
+                if (v >= 1 && v <= 28) void mutate((d) => ({ ...d, settings: { ...d.settings, payDay: v } }));
+              }} /></label>
+        </div>
+        <p class="muted">Il "Disponibile da spendere" toglie dal saldo le uscite non pagate fino a questo giorno.</p>
+      </section>
+
+      <section class="card">
         <h3>Regole da file</h3>
         <label>Importa regole <input type="file" accept="application/json,.json" aria-label="Importa regole"
           onChange={(e) => void importRules(e.currentTarget.files?.[0])} /></label>

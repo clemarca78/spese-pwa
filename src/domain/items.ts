@@ -28,7 +28,6 @@ export function buildItems(data: AppData, from: Day, to: Day): Item[] {
         paid: o?.paid ?? false,
         skipped: o?.skipped ?? false,
         pendingDebit: o?.pendingDebit ?? false,
-        ...(rule.autoDebit ? { autoDebit: true } : {}),
       });
     }
   }

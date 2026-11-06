@@ -57,6 +57,14 @@ describe('Impostazioni', () => {
     expect(data.value.balances).toHaveLength(1);
     expect(data.value.settings.varieDailyDefault).toBe(4600);
   });
+  it('imposta il giorno dello stipendio e rifiuta valori fuori da 1-28', () => {
+    const r = render(<Impostazioni />);
+    const input = r.getByLabelText('Giorno dello stipendio');
+    fireEvent.input(input, { target: { value: '12' } });
+    expect(data.value.settings.payDay).toBe(12);
+    fireEvent.input(input, { target: { value: '31' } });
+    expect(data.value.settings.payDay).toBe(12);
+  });
   it('cambia i giorni del promemoria di backup', () => {
     const r = render(<Impostazioni />);
     fireEvent.input(r.getByLabelText('Promemoria backup (giorni)'), { target: { value: '7' } });

@@ -58,13 +58,18 @@ describe('validazione robusta', () => {
   it('rifiuta il giorno 29-31 (salterebbe i mesi corti)', () => {
     expect(() => parseRulesFile(withRule({ rrule: 'FREQ=MONTHLY;BYMONTHDAY=31' }))).toThrow(ImportError);
     expect(() => parseRulesFile(withRule({ rrule: 'FREQ=MONTHLY;BYMONTHDAY=-1' }))).not.toThrow();
-    expect(() => parseRulesFile(withRule({ autoDebit: 'si' as never }))).toThrow(ImportError);
-    expect(() => parseRulesFile(withRule({ autoDebit: true }))).not.toThrow();
   });
   it('rifiuta una voce una tantum senza nome o tipo', () => {
     const d = emptyData();
     d.oneOffs = [{ id: 'o', kind: 'expense', amount: 1, day: '2026-11-01', paid: false } as never];
     expect(() => parseImport(exportJson(d))).toThrow(ImportError);
+  });
+  it('rifiuta un giorno dello stipendio fuori da 1-28', () => {
+    const d = emptyData();
+    d.settings.payDay = 31;
+    expect(() => parseImport(JSON.stringify(d))).toThrow(ImportError);
+    d.settings.payDay = 10;
+    expect(() => parseImport(JSON.stringify(d))).not.toThrow();
   });
   it('rifiuta impostazioni incomplete', () => {
     const d = { ...emptyData(), settings: {} };

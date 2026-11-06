@@ -48,7 +48,6 @@ function checkRule(r: unknown): Rule {
   day(o.start, `regola ${name}`);
   if (o.end !== undefined) day(o.end, `regola ${name}`);
   if (typeof o.variable !== 'boolean' || typeof o.active !== 'boolean') fail('regola incompleta');
-  if (o.autoDebit !== undefined && typeof o.autoDebit !== 'boolean') fail(`regola ${name}: addebito automatico non valido`);
   checkRrule(o.rrule as string, name);
   return o as unknown as Rule;
 }
@@ -107,6 +106,7 @@ export function parseImport(text: string): AppData {
   if (typeof st.varieEnabled !== 'boolean') fail('impostazioni incomplete');
   int(st.varieDailyDefault, 'impostazioni');
   if (!Number.isInteger(st.backupReminderDays)) fail('impostazioni incomplete');
+  if (st.payDay !== undefined && !(Number.isInteger(st.payDay) && (st.payDay as number) >= 1 && (st.payDay as number) <= 28)) fail('impostazioni: giorno dello stipendio non valido');
   if (typeof o.updatedAt !== 'string') fail('updatedAt mancante');
   return o as unknown as AppData;
 }

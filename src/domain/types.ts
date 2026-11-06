@@ -13,8 +13,6 @@ export interface Rule {
   start: Day;
   end?: Day;
   active: boolean;
-  /** Addebito diretto sul conto: sappiamo che in quella data scala il saldo. */
-  autoDebit?: boolean;
 }
 export interface Override {
   ruleId: string;
@@ -41,6 +39,8 @@ export interface Settings {
   varieDailyDefault: Cents;
   backupReminderDays: number;
   lastBackupAt?: string;
+  /** Giorno del mese in cui arriva lo stipendio (1-28, default 10). */
+  payDay?: number;
 }
 export interface AppData {
   schemaVersion: 1;
@@ -63,7 +63,6 @@ export interface Item {
   paid: boolean;
   skipped: boolean;
   pendingDebit: boolean;
-  autoDebit?: boolean;
 }
 export interface ForecastPoint {
   day: Day;

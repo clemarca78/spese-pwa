@@ -1,6 +1,6 @@
 import { signal } from '@preact/signals';
 import { useState } from 'preact/hooks';
-import { available, latestBalance, outstandingItems, residual } from '../domain/calc';
+import { available, latestBalance, residual } from '../domain/calc';
 import { addDays, endOfMonth, todayLocal } from '../domain/days';
 import { buildItems } from '../domain/items';
 import { formatEuro, parseEuro } from '../domain/money';
@@ -51,7 +51,6 @@ function ItemRow({ item, balanceDay }: { item: Item; balanceDay?: string }) {
       <span class="name">
         {item.name}
         {item.estimated ? <small> stima</small> : null}
-        {item.autoDebit ? <small> addebito automatico</small> : null}
       </span>
       {item.kind === 'expense' && balanceDay && item.day <= balanceDay ? (
         <label class="pending">
@@ -138,9 +137,9 @@ export function Mese() {
   const bal = latestBalance(d);
   const all = buildItems(d, start, end);
   const items = all.filter((i) => (filtro.value === 'tutte' ? true : filtro.value === 'pagate' ? i.paid : !i.paid));
-  const out = outstandingItems(d, end).reduce((s, i) => s + i.amount, 0);
-  const res = residual(d, end, todayLocal());
-  const av = available(d, end, todayLocal());
+  const today = todayLocal();
+  const res = residual(d, today, today);
+  const av = available(d, today, d.settings.payDay ?? 10);
   const debitsTotal = av ? av.debits.reduce((s, i) => s + i.amount, 0) : 0;
   const showBackup = backupDue(d.settings, new Date().toISOString());
 
@@ -176,12 +175,8 @@ export function Mese() {
             <strong data-testid="residuo">{formatEuro(res ?? 0)}</strong>
           </div>
           <div>
-            <small>Ancora da pagare</small>
-            <strong>{formatEuro(out)}</strong>
-          </div>
-          <div>
-            <small>Addebiti automatici{av?.upTo ? ` fino al ${av.upTo.split('-').reverse().slice(0, 2).join('/')}` : ''}</small>
-            <strong data-testid="addebiti">{formatEuro(debitsTotal)}</strong>
+            <small>Da pagare entro il {av ? av.upTo.split('-').reverse().slice(0, 2).join('/') : ''}</small>
+            <strong data-testid="da-pagare">{formatEuro(debitsTotal)}</strong>
           </div>
           <div class={`wide ${av && av.value < 0 ? 'neg' : 'pos'}`}>
             <small>Disponibile da spendere</small>

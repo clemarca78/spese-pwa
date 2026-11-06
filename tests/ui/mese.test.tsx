@@ -27,13 +27,13 @@ function withBalance() {
 }
 
 describe('Mese', () => {
-  it('mostra saldo, ancora da pagare e residuo', () => {
+  it('mostra saldo, residuo, da pagare e disponibile', () => {
     withBalance();
     const { container } = render(<Mese />);
     const t = text(container);
-    expect(t).toContain('50,00'); // ancora da pagare
+    expect(tid(container, 'da-pagare')).toContain('50,00'); // la bolletta non ancora pagata
     expect(tid(container, 'residuo')).toContain('1.500,00'); // nulla di pagato dopo il saldo
-    expect(tid(container, 'disponibile')).toContain('1.500,00'); // la bolletta non è un addebito automatico
+    expect(tid(container, 'disponibile')).toContain('1.450,00'); // saldo meno la bolletta in arrivo
     expect(t).toMatch(/residuo/i);
   });
   it('la spunta "pagata" aggiorna la voce', () => {
@@ -49,20 +49,20 @@ describe('Mese', () => {
     fireEvent.click(getByLabelText('Pagata: bolletta'));
     expect(tid(container, 'residuo')).toContain('1.450,00');
   });
-  it('il disponibile sottrae gli addebiti automatici in arrivo e li mostra', () => {
+  it('il disponibile toglie tutte le uscite non pagate fino al prossimo stipendio', () => {
     const d = emptyData();
     d.balances = [{ value: 150000, day: '2026-11-03' }];
     d.settings.lastBackupAt = new Date().toISOString();
     d.rules = [
-      { id: 't', name: 'Tim', kind: 'expense', amount: 2789, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=25', start: '2026-01-01', active: true, autoDebit: true },
+      { id: 't', name: 'Tim', kind: 'expense', amount: 2789, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=25', start: '2026-01-01', active: true },
       { id: 'd', name: 'Dentista', kind: 'expense', amount: 8500, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=26', start: '2026-01-01', active: true },
     ];
     data.value = d;
     const { container, getByText } = render(<Mese />);
     expect(tid(container, 'residuo')).toContain('1.500,00');
-    expect(tid(container, 'addebiti')).toContain('27,89');
-    expect(tid(container, 'disponibile')).toContain('1.472,11');
-    expect(getByText('addebito automatico')).toBeTruthy();
+    expect(tid(container, 'da-pagare')).toContain('112,89');
+    expect(tid(container, 'disponibile')).toContain('1.387,11');
+    expect(getByText('Da pagare entro il 10/12')).toBeTruthy();
   });
   it('permette di segnare una voce slittata prima del saldo come ancora da addebitare', () => {
     const d = emptyData();

@@ -68,15 +68,6 @@ describe('Regole', () => {
     fireEvent.click(r.getByText('Modifica'));
     expect((r.getByLabelText('Nome regola') as HTMLInputElement).value).toBe('Palestra');
   });
-  it('salva e riapre una regola con addebito automatico', () => {
-    const r = render(<Regole />);
-    fill(r, 'Tim', '27,89');
-    fireEvent.click(r.getByLabelText('Addebito automatico sul conto'));
-    fireEvent.click(r.getByText('Salva regola'));
-    expect(data.value.rules[0].autoDebit).toBe(true);
-    fireEvent.click(r.getByText('Modifica'));
-    expect((r.getByLabelText('Addebito automatico sul conto') as HTMLInputElement).checked).toBe(true);
-  });
   it('elimina una regola e le sue correzioni solo dopo la conferma', () => {
     const d = emptyData();
     d.rules = [
