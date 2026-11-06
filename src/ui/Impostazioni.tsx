@@ -89,7 +89,7 @@ export function Impostazioni() {
                 if (v >= 1 && v <= 28) void mutate((d) => ({ ...d, settings: { ...d.settings, payDay: v } }));
               }} /></label>
         </div>
-        <p class="muted">Il "Disponibile da spendere" toglie dal saldo le uscite non pagate fino a questo giorno.</p>
+        <p class="muted">Il "Disponibile da spendere" toglie dal saldo le uscite non pagate prima di questo giorno.</p>
       </section>
 
       <section class="card">

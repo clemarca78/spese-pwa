@@ -175,7 +175,7 @@ export function Mese() {
             <strong data-testid="residuo">{formatEuro(res ?? 0)}</strong>
           </div>
           <div>
-            <small>Da pagare entro il {av ? av.upTo.split('-').reverse().slice(0, 2).join('/') : ''}</small>
+            <small>Da pagare prima del {av ? av.upTo.split('-').reverse().slice(0, 2).join('/') : ''}</small>
             <strong data-testid="da-pagare">{formatEuro(debitsTotal)}</strong>
           </div>
           <div class={`wide ${av && av.value < 0 ? 'neg' : 'pos'}`}>

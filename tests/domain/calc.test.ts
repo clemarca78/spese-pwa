@@ -68,27 +68,27 @@ describe('available (disponibile da spendere)', () => {
     ];
     return d;
   }
-  it('toglie dal residuo tutte le uscite non pagate fino al giorno dello stipendio compreso', () => {
+  it('toglie dal residuo tutte le uscite non pagate prima del giorno dello stipendio', () => {
     const d = withRules();
     d.oneOffs = [oneOff({ id: 'segnata', day: '2026-11-09', amount: 1000 })];
     const a = available(d, '2026-11-06', 10);
-    expect(a).toMatchObject({ value: 150000 - 2789 - 4000 - 1000, upTo: '2026-11-10' });
-    expect(a?.debits.map((i) => i.name).sort()).toEqual(['Palestra', 'Tim', 'x']);
+    expect(a).toMatchObject({ value: 150000 - 2789 - 1000, upTo: '2026-11-10' });
+    expect(a?.debits.map((i) => i.name).sort()).toEqual(['Tim', 'x']);
   });
-  it('non somma le entrate previste e non conta le uscite dopo lo stipendio', () => {
+  it('non somma le entrate previste e non conta le uscite dal giorno dello stipendio in poi', () => {
     const d = withRules();
     d.oneOffs = [oneOff({ id: 'inc', kind: 'income', day: '2026-11-08', amount: 99999 })];
-    expect(available(d, '2026-11-06', 10)?.value).toBe(150000 - 2789 - 4000);
+    expect(available(d, '2026-11-06', 10)?.value).toBe(150000 - 2789);
   });
   it('dopo il giorno dello stipendio guarda al mese successivo', () => {
     const d = withRules();
     expect(available(d, '2026-11-12', 10)?.upTo).toBe('2026-12-10');
-    expect(available(d, '2026-11-12', 10)?.value).toBe(150000 - 3695 - 2 * 2789 - 2 * 4000);
+    expect(available(d, '2026-11-12', 10)?.value).toBe(150000 - 3695 - 2 * 2789 - 4000);
   });
   it('le spese già spuntate stanno nel residuo e non si sottraggono due volte', () => {
     const d = withRules();
     d.overrides = [{ ruleId: 'tim', day: '2026-11-08', paid: true }];
-    expect(available(d, '2026-11-09', 10)?.value).toBe(150000 - 2789 - 4000);
+    expect(available(d, '2026-11-09', 10)?.value).toBe(150000 - 2789);
   });
   it('una voce slittata ancora da addebitare scala una volta sola', () => {
     const d = withBalance();

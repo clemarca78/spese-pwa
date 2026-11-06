@@ -34,7 +34,7 @@ export interface Available {
   value: Cents;
   /** Giorno dello stipendio fino al quale si tolgono le uscite. */
   upTo: Day;
-  /** Uscite non ancora pagate (dopo il saldo, fino a `upTo` compreso) tolte dal residuo. */
+  /** Uscite non ancora pagate (dopo il saldo, prima di `upTo`) tolte dal residuo. */
   debits: Item[];
 }
 
@@ -51,7 +51,7 @@ export function nextPayDay(today: Day, payDay: number): Day {
 
 /**
  * Disponibile da spendere = residuo − tutte le uscite non ancora pagate (ricorrenti e segnate)
- * dopo il saldo, fino al prossimo giorno dello stipendio compreso. Le entrate previste non si
+ * dopo il saldo e prima del prossimo giorno dello stipendio (quel giorno arrivano i soldi). Le entrate previste non si
  * sommano finché non le incassi: serve a non andare in negativo prima dello stipendio.
  */
 export function available(data: AppData, today: Day, payDay: number): Available | null {
@@ -59,7 +59,7 @@ export function available(data: AppData, today: Day, payDay: number): Available 
   const res = residual(data, today, today);
   if (!bal || res === null) return null;
   const upTo = nextPayDay(today, payDay);
-  const debits = buildItems(data, addDays(bal.day, 1), upTo).filter((i) => i.kind === 'expense' && !i.paid && !i.skipped);
+  const debits = buildItems(data, addDays(bal.day, 1), addDays(upTo, -1)).filter((i) => i.kind === 'expense' && !i.paid && !i.skipped);
   return { value: res - debits.reduce((s, i) => s + i.amount, 0), upTo, debits };
 }
 

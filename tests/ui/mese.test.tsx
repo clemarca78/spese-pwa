@@ -62,7 +62,7 @@ describe('Mese', () => {
     expect(tid(container, 'residuo')).toContain('1.500,00');
     expect(tid(container, 'da-pagare')).toContain('112,89');
     expect(tid(container, 'disponibile')).toContain('1.387,11');
-    expect(getByText('Da pagare entro il 10/12')).toBeTruthy();
+    expect(getByText('Da pagare prima del 10/12')).toBeTruthy();
   });
   it('permette di segnare una voce slittata prima del saldo come ancora da addebitare', () => {
     const d = emptyData();
