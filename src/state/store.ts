@@ -77,8 +77,9 @@ export async function applyRemote(remote: AppData, expectedLocalUpdatedAt: strin
   return true;
 }
 
-export function setPendingDebit(item: Item, pendingDebit: boolean): Promise<void> {
-  return mutate((d) => upsertOverride(d, item, { pendingDebit }));
+/** "Non dovuta / già sistemata": l'occorrenza esce da elenchi e calcoli. */
+export function setSkipped(item: Item, skipped: boolean): Promise<void> {
+  return mutate((d) => upsertOverride(d, item, { skipped }));
 }
 
 export function setItemAmount(item: Item, amount: Cents): Promise<void> {

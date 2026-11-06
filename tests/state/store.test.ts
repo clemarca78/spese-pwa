@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { todayLocal } from '../../src/domain/days';
 import type { Item } from '../../src/domain/types';
-import { addBalance, addOneOff, data, deleteOneOff, deleteRule, initStore, mutate, setItemAmount, setPaid, updateOneOff } from '../../src/state/store';
+import { addBalance, addOneOff, data, deleteOneOff, deleteRule, initStore, mutate, setItemAmount, setPaid, setSkipped, updateOneOff } from '../../src/state/store';
 import { emptyData } from '../../src/storage/backup';
 import { openRepo } from '../../src/storage/repo';
 
@@ -13,7 +13,7 @@ beforeEach(async () => {
 
 const ruleItem: Item = {
   key: 'r1@2026-11-24', ruleId: 'r1', name: 'x', kind: 'expense', day: '2026-11-24',
-  amount: 1000, estimated: false, paid: false, skipped: false, pendingDebit: false,
+  amount: 1000, estimated: false, paid: false, skipped: false,
 };
 
 describe('modifica ed eliminazione', () => {
@@ -72,6 +72,12 @@ describe('store', () => {
     await setPaid({ ...ruleItem, ruleId: undefined, oneOffId: id }, false);
     expect(data.value.oneOffs[0].paid).toBe(false);
     expect('paidOn' in data.value.oneOffs[0]).toBe(false);
+  });
+  it('setSkipped segna una occorrenza come non dovuta e si può annullare', async () => {
+    await setSkipped(ruleItem, true);
+    expect(data.value.overrides).toEqual([{ ruleId: 'r1', day: '2026-11-24', skipped: true }]);
+    await setSkipped(ruleItem, false);
+    expect(data.value.overrides[0].skipped).toBe(false);
   });
   it('setItemAmount crea un override con importo reale', async () => {
     await setItemAmount(ruleItem, 12345);

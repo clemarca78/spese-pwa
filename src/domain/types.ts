@@ -22,7 +22,6 @@ export interface Override {
   /** Giorno in cui hai spuntato "pagata": conta per il residuo al posto della scadenza. */
   paidOn?: Day;
   skipped?: boolean;
-  pendingDebit?: boolean;
 }
 export interface OneOff {
   id: string;
@@ -66,7 +65,6 @@ export interface Item {
   paid: boolean;
   paidOn?: Day;
   skipped: boolean;
-  pendingDebit: boolean;
 }
 export interface ForecastPoint {
   day: Day;

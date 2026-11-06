@@ -39,15 +39,6 @@ describe('forecast', () => {
     d.settings.varieDailyDefault = 1000;
     expect(forecast(d, 2).map((p) => p.balance)).toEqual([100000, 99000, 98000]);
   });
-  it('sottrae una voce slittata prima del saldo se marcata ancora da addebitare', () => {
-    const d = base();
-    d.oneOffs = [oo({ day: '2026-11-01' })];
-    expect(forecast(d, 2).map((p) => p.balance)).toEqual([100000, 100000, 100000]);
-    d.overrides = [];
-    d.rules = [{ id: 'r1', name: 'mutuo', kind: 'expense', amount: 50000, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=1', start: '2026-01-01', active: true }];
-    d.overrides = [{ ruleId: 'r1', day: '2026-11-01', pendingDebit: true }];
-    expect(forecast(d, 2).map((p) => p.balance)).toEqual([100000, 50000, 50000]);
-  });
   it('senza saldo non prevede nulla', () => {
     expect(forecast(emptyTestData(), 30)).toEqual([]);
   });

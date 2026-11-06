@@ -80,3 +80,5 @@ button.link.danger { color: var(--neg); }
 .dates { align-items: flex-end; }
 .item.dated { grid-template-columns: 28px 48px 1fr 104px; }
 .filters > * { flex: 1 1 0; }
+.item.dated.late { grid-template-columns: 28px 76px 1fr 104px; }
+.late-section h3 { margin: 16px 0 4px; font-size: 1rem; }

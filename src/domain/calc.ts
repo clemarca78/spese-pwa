@@ -3,22 +3,18 @@ import { buildItems } from './items';
 import { expandRule } from './recurrence';
 import type { AppData, Balance, Cents, Day, Item, Rule } from './types';
 
-export const PENDING_LOOKBACK_DAYS = 45;
-
 export function latestBalance(data: AppData): Balance | undefined {
   return [...data.balances].sort((a, b) => a.day.localeCompare(b.day)).at(-1);
 }
 
 /**
  * Residuo = saldo − uscite pagate dopo il saldo + entrate incassate dopo il saldo.
- * Conta il giorno in cui hai spuntato "pagata" (paidOn), altrimenti la scadenza, fino a `min(until, today)`; le uscite slittate
- * "ancora da addebitare" scalano perché il saldo non le contiene ancora.
+ * Conta il giorno in cui hai spuntato "pagata" (paidOn), altrimenti la scadenza, fino a `min(until, today)`.
  */
 export function residual(data: AppData, until: Day, today: Day): Cents | null {
   const bal = latestBalance(data);
   if (!bal) return null;
   const cutoff = until < today ? until : today;
-  const pendingFrom = addDays(bal.day, -PENDING_LOOKBACK_DAYS);
   let total = bal.value;
   // le rate arretrate si possono pagare molto dopo la scadenza: si guarda indietro di un anno
   for (const i of buildItems(data, addDays(bal.day, -366), addDays(cutoff, 366))) {
@@ -26,8 +22,6 @@ export function residual(data: AppData, until: Day, today: Day): Cents | null {
     if (i.paid) {
       const when = i.paidOn ?? i.day; // le voci vecchie senza paidOn valgono alla scadenza
       if (when > bal.day && when <= cutoff) total += i.kind === 'income' ? i.amount : -i.amount;
-    } else if (i.kind === 'expense' && i.pendingDebit && i.day <= bal.day && i.day >= pendingFrom) {
-      total -= i.amount;
     }
   }
   return total;

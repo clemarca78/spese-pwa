@@ -4,8 +4,8 @@ import { available, latestBalance, residual } from '../domain/calc';
 import { addDays, endOfMonth, todayLocal } from '../domain/days';
 import { buildItems } from '../domain/items';
 import { formatEuro, parseEuro } from '../domain/money';
-import type { Item, Kind } from '../domain/types';
-import { addBalance, addOneOff, data, deleteOneOff, setItemAmount, setPaid, setPendingDebit, updateOneOff } from '../state/store';
+import type { AppData, Day, Item, Kind } from '../domain/types';
+import { addBalance, addOneOff, data, deleteOneOff, setItemAmount, setPaid, setSkipped, updateOneOff } from '../state/store';
 import { backupDue } from '../storage/backup';
 import { screen } from './Nav';
 
@@ -38,31 +38,26 @@ function BalanceForm({ label }: { label: string }) {
   );
 }
 
-function ItemRow({ item, balanceDay }: { item: Item; balanceDay?: string }) {
+function ItemRow({ item, arretrato }: { item: Item; arretrato?: boolean }) {
+  const fullDate = item.day.split('-').reverse().join('/');
+  const label = arretrato ? `${item.name} ${fullDate}` : item.name;
   return (
-    <li class={`item dated ${item.kind} ${item.paid ? 'done' : ''} ${item.skipped ? 'skipped' : ''}`}>
+    <li class={`item dated ${arretrato ? 'late' : ''} ${item.kind} ${item.paid ? 'done' : ''} ${item.skipped ? 'skipped' : ''}`}>
       <input
         type="checkbox"
-        aria-label={`${item.kind === 'income' ? 'Incassata' : 'Pagata'}: ${item.name}`}
+        aria-label={`${item.kind === 'income' ? 'Incassata' : 'Pagata'}: ${label}`}
         checked={item.paid}
         onChange={(e) => void setPaid(item, e.currentTarget.checked)}
       />
-      <span class="day">{shortDate(item.day)}</span>
+      <span class="day">{arretrato ? `${shortDate(item.day)}/${item.day.slice(2, 4)}` : shortDate(item.day)}</span>
       <span class="name">
         {item.name}
         {item.estimated ? <small> stima</small> : null}
       </span>
-      {item.kind === 'expense' && balanceDay && item.day <= balanceDay ? (
-        <label class="pending">
-          <input type="checkbox" aria-label={`Ancora da addebitare: ${item.name}`} checked={item.pendingDebit}
-            onChange={(e) => void setPendingDebit(item, e.currentTarget.checked)} />
-          <small> non ancora addebitata</small>
-        </label>
-      ) : null}
       <input
         class="amount"
         inputMode="decimal"
-        aria-label={`Importo: ${item.name}`}
+        aria-label={`Importo: ${label}`}
         defaultValue={plain(item.amount)}
         key={item.key + item.amount}
         onBlur={(e) => {
@@ -80,9 +75,24 @@ function ItemRow({ item, balanceDay }: { item: Item; balanceDay?: string }) {
               void deleteOneOff(item.oneOffId as string);
             }}>Elimina</button>
         </div>
+      ) : item.ruleId && arretrato ? (
+        <div class="actions">
+          <button class="link" aria-label={`Salta: ${label}`}
+            onClick={() => {
+              if (!window.confirm(`Segnare "${item.name}" del ${fullDate} come non dovuta? Non comparirà più e non conta nei calcoli.`)) return;
+              void setSkipped(item, true);
+            }}>Salta</button>
+        </div>
       ) : null}
     </li>
   );
+}
+
+/** Uscite non pagate (e non saltate) con scadenza prima di `monthStart`, dall'inizio delle regole. */
+function arretrati(d: AppData, monthStart: Day): Item[] {
+  const starts = [...d.rules.map((r) => r.start), ...d.oneOffs.map((o) => o.day)].sort();
+  if (starts.length === 0 || starts[0] >= monthStart) return [];
+  return buildItems(d, starts[0], addDays(monthStart, -1)).filter((i) => i.kind === 'expense' && !i.paid && !i.skipped);
 }
 
 function AddOneOff() {
@@ -141,6 +151,7 @@ export function Mese() {
   const res = residual(d, today, today);
   const av = available(d, today, d.settings.payDay ?? 10);
   const debitsTotal = av ? av.debits.reduce((s, i) => s + i.amount, 0) : 0;
+  const late = viewMonth.value === today.slice(0, 7) && filtro.value !== 'pagate' ? arretrati(d, start) : [];
   const showBackup = backupDue(d.settings, new Date().toISOString());
 
   return (
@@ -195,9 +206,18 @@ export function Mese() {
         ))}
       </div>
 
+      {late.length > 0 ? (
+        <section class="late-section">
+          <h3>Arretrati</h3>
+          <ul class="items">
+            {late.map((i) => <ItemRow key={i.key} item={i} arretrato />)}
+          </ul>
+        </section>
+      ) : null}
+
       <ul class="items">
         {items.map((i) => (
-          <ItemRow key={i.key} item={i} balanceDay={bal?.day} />
+          <ItemRow key={i.key} item={i} />
         ))}
         {items.length === 0 ? <li class="empty">{all.length === 0 ? 'Nessuna voce in questo mese.' : 'Nessuna voce con questo filtro.'}</li> : null}
       </ul>

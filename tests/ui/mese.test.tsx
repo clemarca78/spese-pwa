@@ -75,16 +75,48 @@ describe('Mese', () => {
     fireEvent.click(getByLabelText('Pagata: Dentista'));
     expect(tid(container, 'residuo')).toContain('1.415,00');
   });
-  it('permette di segnare una voce slittata prima del saldo come ancora da addebitare', () => {
-    const d = emptyData();
-    d.balances = [{ value: 150000, day: '2026-11-03' }];
-    d.settings.lastBackupAt = new Date().toISOString();
-    d.rules = [{ id: 'm', name: 'Mutuo', kind: 'expense', amount: 60000, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=1', start: '2026-01-01', active: true }];
-    data.value = d;
-    const { getByLabelText, container } = render(<Mese />);
-    fireEvent.click(getByLabelText('Ancora da addebitare: Mutuo'));
-    expect(data.value.overrides[0]).toMatchObject({ ruleId: 'm', day: '2026-11-01', pendingDebit: true });
-    expect(text(container)).toContain('900,00'); // residuo: 1.500,00 - 600,00
+  describe('arretrati', () => {
+    function arretrati() {
+      const d = emptyData();
+      d.balances = [{ value: 150000, day: '2026-11-03' }];
+      d.settings.lastBackupAt = new Date().toISOString();
+      d.rules = [{ id: 'den', name: 'Dentista', kind: 'expense', amount: 8500, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=1', start: '2026-08-01', active: true }];
+      data.value = d;
+    }
+    it('il mese corrente mostra in cima le voci non pagate dei mesi scorsi', () => {
+      arretrati();
+      const { getByText, getAllByText } = render(<Mese />);
+      expect(getByText('Arretrati')).toBeTruthy();
+      expect(getAllByText('Dentista')).toHaveLength(4); // ago, set, ott + il 01/11
+    });
+    it('gli altri mesi non mostrano arretrati', () => {
+      arretrati();
+      viewMonth.value = '2026-10';
+      const { queryByText } = render(<Mese />);
+      expect(queryByText('Arretrati')).toBeNull();
+    });
+    it('pagare un arretrato scala dal residuo oggi e lo toglie dagli arretrati', () => {
+      arretrati();
+      const { getByLabelText, container, getAllByText } = render(<Mese />);
+      fireEvent.click(getByLabelText('Pagata: Dentista 01/10/2026'));
+      expect(tid(container, 'residuo')).toContain('1.415,00');
+      expect(getAllByText('Dentista')).toHaveLength(3);
+    });
+    it('Salta toglie un arretrato senza toccare il residuo', () => {
+      arretrati();
+      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+      const { getByLabelText, container, getAllByText } = render(<Mese />);
+      fireEvent.click(getByLabelText('Salta: Dentista 01/08/2026'));
+      expect(tid(container, 'residuo')).toContain('1.500,00');
+      expect(getAllByText('Dentista')).toHaveLength(3);
+      confirm.mockRestore();
+    });
+    it('il filtro Pagate nasconde gli arretrati', () => {
+      arretrati();
+      const { getByText, queryByText } = render(<Mese />);
+      fireEvent.click(getByText('Pagate'));
+      expect(queryByText('Arretrati')).toBeNull();
+    });
   });
   it('"Già pagata" crea la voce già spuntata e il residuo scala comunque', () => {
     withBalance();

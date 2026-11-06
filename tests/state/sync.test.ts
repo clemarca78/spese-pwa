@@ -69,7 +69,7 @@ describe('syncNow', () => {
     await new Promise((r) => setTimeout(r, 20));
     expect(syncStatus.value).toBe('conflict');
     conflictResolver.value?.('remote'); // l'utente sceglie Drive, ma intanto modifica
-    await setPaid({ key: 'o1', oneOffId: 'o1', name: 'x', kind: 'expense', day: '2026-11-10', amount: 100, estimated: false, paid: false, skipped: false, pendingDebit: false }, true);
+    await setPaid({ key: 'o1', oneOffId: 'o1', name: 'x', kind: 'expense', day: '2026-11-10', amount: 100, estimated: false, paid: false, skipped: false }, true);
     release();
     await p;
     expect(data.value.oneOffs[0]?.paid).toBe(true); // la modifica locale non è stata persa

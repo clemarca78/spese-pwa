@@ -1,4 +1,4 @@
-import { PENDING_LOOKBACK_DAYS, latestBalance } from './calc';
+import { latestBalance } from './calc';
 import { addDays } from './days';
 import { buildItems } from './items';
 import type { AppData, Cents, Day, ForecastPoint } from './types';
@@ -14,12 +14,7 @@ export function forecast(data: AppData, horizonDays: number): ForecastPoint[] {
     if (it.skipped) continue;
     byDay.set(it.day, (byDay.get(it.day) ?? 0) + (it.kind === 'income' ? it.amount : -it.amount));
   }
-  // voci slittate prima del saldo e non ancora addebitate: pesano sul primo giorno futuro
   const firstDay = addDays(bal.day, 1);
-  for (const it of buildItems(data, addDays(bal.day, -PENDING_LOOKBACK_DAYS), bal.day)) {
-    if (!it.pendingDebit || it.skipped) continue;
-    byDay.set(firstDay, (byDay.get(firstDay) ?? 0) + (it.kind === 'income' ? it.amount : -it.amount));
-  }
   // voci con scadenza passata ma pagate dopo il saldo: il saldo non le contiene, pesano sul primo giorno futuro
   for (const it of buildItems(data, addDays(bal.day, -366), bal.day)) {
     if (!it.paid || it.skipped || !it.paidOn || it.paidOn <= bal.day) continue;

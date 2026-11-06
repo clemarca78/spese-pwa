@@ -39,13 +39,6 @@ describe('residual', () => {
     expect(residual(d, '2026-11-09', TODAY)).toBe(150000);
     expect(residual(d, END, TODAY)).toBe(150000 - 5000);
   });
-  it('una voce slittata PRIMA del saldo e ancora da addebitare scala dal residuo', () => {
-    const d = withBalance();
-    d.rules = [mkRule({ amount: 60000, rrule: 'FREQ=MONTHLY;BYMONTHDAY=1' })];
-    expect(residual(d, END, TODAY)).toBe(150000);
-    d.overrides = [{ ruleId: 'r1', day: '2026-11-01', pendingDebit: true }];
-    expect(residual(d, END, TODAY)).toBe(150000 - 60000);
-  });
   it('una entrata incassata dopo il saldo (fino a oggi) aumenta il residuo; le altre no', () => {
     const d = withBalance();
     d.oneOffs = [
@@ -125,12 +118,6 @@ describe('available (disponibile da spendere)', () => {
     const d = withRules();
     d.overrides = [{ ruleId: 'tim', day: '2026-11-08', paid: true }];
     expect(available(d, '2026-11-09', 10)?.value).toBe(150000 - 2789);
-  });
-  it('una voce slittata ancora da addebitare scala una volta sola', () => {
-    const d = withBalance();
-    d.rules = [mkRule({ amount: 60000, rrule: 'FREQ=MONTHLY;BYMONTHDAY=1' })];
-    d.overrides = [{ ruleId: 'r1', day: '2026-11-01', pendingDebit: true }];
-    expect(available(d, '2026-11-06', 10)?.value).toBe(150000 - 60000);
   });
   it('senza saldo è null', () => {
     expect(available(emptyTestData(), '2026-11-06', 10)).toBeNull();
