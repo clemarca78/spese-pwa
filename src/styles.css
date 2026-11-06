@@ -82,3 +82,5 @@ button.link.danger { color: var(--neg); }
 .filters > * { flex: 1 1 0; }
 .item.dated.late { grid-template-columns: 28px 76px 1fr 104px; }
 .late-section h3 { margin: 16px 0 4px; font-size: 1rem; }
+.filters { gap: 6px; }
+.filters .chip { padding: 8px 4px; }

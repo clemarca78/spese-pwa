@@ -10,8 +10,14 @@ import { backupDue } from '../storage/backup';
 import { screen } from './Nav';
 
 export const viewMonth = signal(todayLocal().slice(0, 7));
-type Filtro = 'tutte' | 'da-pagare' | 'pagate';
-const FILTRI: Array<[Filtro, string]> = [['tutte', 'Tutte'], ['da-pagare', 'Da pagare'], ['pagate', 'Pagate']];
+type Filtro = 'tutte' | 'da-pagare' | 'pagate' | 'entrate';
+const FILTRI: Array<[Filtro, string]> = [['tutte', 'Tutte'], ['da-pagare', 'Da pagare'], ['pagate', 'Pagate'], ['entrate', 'Entrate']];
+const passes: Record<Filtro, (i: Item) => boolean> = {
+  tutte: () => true,
+  'da-pagare': (i) => i.kind === 'expense' && !i.paid,
+  pagate: (i) => i.kind === 'expense' && i.paid,
+  entrate: (i) => i.kind === 'income',
+};
 export const filtro = signal<Filtro>('tutte');
 const shortDate = (d: string) => `${d.slice(8)}/${d.slice(5, 7)}`;
 /** id della voce una tantum in modifica (null = modulo di aggiunta) */
@@ -153,12 +159,12 @@ export function Mese() {
   const end = endOfMonth(start);
   const bal = latestBalance(d);
   const all = buildItems(d, start, end);
-  const items = all.filter((i) => (filtro.value === 'tutte' ? true : filtro.value === 'pagate' ? i.paid : !i.paid));
+  const items = all.filter(passes[filtro.value]);
   const today = todayLocal();
   const res = residual(d, today, today);
   const av = available(d, today, d.settings.payDay ?? 10);
   const debitsTotal = av ? av.debits.reduce((s, i) => s + i.amount, 0) : 0;
-  const late = viewMonth.value === today.slice(0, 7) && filtro.value !== 'pagate' ? arretrati(d, start) : [];
+  const late = viewMonth.value === today.slice(0, 7) && (filtro.value === 'tutte' || filtro.value === 'da-pagare') ? arretrati(d, start) : [];
   const showBackup = backupDue(d.settings, new Date().toISOString());
 
   return (

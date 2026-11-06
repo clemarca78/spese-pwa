@@ -111,10 +111,12 @@ describe('Mese', () => {
       expect(getAllByText('Dentista')).toHaveLength(3);
       confirm.mockRestore();
     });
-    it('il filtro Pagate nasconde gli arretrati', () => {
+    it('i filtri Pagate ed Entrate nascondono gli arretrati', () => {
       arretrati();
       const { getByText, queryByText } = render(<Mese />);
       fireEvent.click(getByText('Pagate'));
+      expect(queryByText('Arretrati')).toBeNull();
+      fireEvent.click(getByText('Entrate'));
       expect(queryByText('Arretrati')).toBeNull();
     });
   });
@@ -157,6 +159,32 @@ describe('Mese', () => {
     withBalance();
     const { container } = render(<Mese />);
     expect(container.querySelector('.item .day')?.textContent).toBe('10/11');
+  });
+  it('i filtri Da pagare e Pagate riguardano solo le uscite, Entrate mostra solo le entrate', () => {
+    withBalance();
+    const d = data.value;
+    data.value = {
+      ...d,
+      oneOffs: [
+        ...d.oneOffs,
+        { id: 'o2', name: 'fatta', kind: 'expense', amount: 1000, day: '2026-11-05', paid: true },
+        { id: 'i1', name: 'rimborso', kind: 'income', amount: 2000, day: '2026-11-06', paid: false },
+        { id: 'i2', name: 'regalo', kind: 'income', amount: 3000, day: '2026-11-07', paid: true },
+      ],
+    };
+    const { getByText, queryByText } = render(<Mese />);
+    fireEvent.click(getByText('Da pagare'));
+    expect(queryByText('bolletta')).toBeTruthy();
+    expect(queryByText('rimborso')).toBeNull();
+    expect(queryByText('regalo')).toBeNull();
+    fireEvent.click(getByText('Pagate'));
+    expect(queryByText('fatta')).toBeTruthy();
+    expect(queryByText('regalo')).toBeNull();
+    fireEvent.click(getByText('Entrate'));
+    expect(queryByText('rimborso')).toBeTruthy();
+    expect(queryByText('regalo')).toBeTruthy();
+    expect(queryByText('bolletta')).toBeNull();
+    expect(queryByText('fatta')).toBeNull();
   });
   it('il filtro separa le voci da pagare da quelle già pagate', () => {
     withBalance();
