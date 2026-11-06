@@ -13,6 +13,8 @@ export interface Rule {
   start: Day;
   end?: Day;
   active: boolean;
+  /** Addebito diretto sul conto: alla scadenza risulta già pagata. */
+  autoDebit?: boolean;
 }
 export interface Override {
   ruleId: string;
@@ -71,6 +73,7 @@ export interface Item {
   paidOn?: Day;
   paidAt?: string;
   skipped: boolean;
+  autoDebit?: boolean;
 }
 export interface ForecastPoint {
   day: Day;

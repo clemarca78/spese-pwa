@@ -106,6 +106,28 @@ describe('residual: ordine tra saldo e pagamento nello stesso giorno', () => {
   });
 });
 
+describe('addebito automatico nel residuo', () => {
+  const tim = () => mkRule({ id: 'tim', name: 'Tim', amount: 2789, rrule: 'FREQ=MONTHLY;BYMONTHDAY=8', autoDebit: true });
+  it('scala dal conto alla data di scadenza, senza spuntare', () => {
+    const d = withBalance();
+    d.rules = [tim()];
+    expect(residual(d, '2026-11-07', '2026-11-07')).toBe(150000);
+    expect(residual(d, '2026-11-09', '2026-11-09')).toBe(150000 - 2789);
+  });
+  it('se il saldo è inserito dopo la scadenza non scala di nuovo', () => {
+    const d = withBalance();
+    d.balances = [{ value: 150000, day: '2026-11-09' }];
+    d.rules = [tim()];
+    expect(residual(d, '2026-11-10', '2026-11-10')).toBe(150000);
+  });
+  it('prima della scadenza pesa sul disponibile; dopo è già nel conto e non pesa due volte', () => {
+    const d = withBalance();
+    d.rules = [tim()];
+    expect(available(d, '2026-11-05', 10)?.value).toBe(150000 - 2789);
+    expect(available(d, '2026-11-09', 10)).toMatchObject({ value: 150000 - 2789, upTo: '2026-11-10' }); // novembre già nel conto, dicembre oltre il giorno di riferimento
+  });
+});
+
 describe('available (disponibile da spendere)', () => {
   function withRules() {
     const d = withBalance();

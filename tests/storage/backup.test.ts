@@ -58,6 +58,8 @@ describe('validazione robusta', () => {
   it('rifiuta il giorno 29-31 (salterebbe i mesi corti)', () => {
     expect(() => parseRulesFile(withRule({ rrule: 'FREQ=MONTHLY;BYMONTHDAY=31' }))).toThrow(ImportError);
     expect(() => parseRulesFile(withRule({ rrule: 'FREQ=MONTHLY;BYMONTHDAY=-1' }))).not.toThrow();
+    expect(() => parseRulesFile(withRule({ autoDebit: 'si' as never }))).toThrow(ImportError);
+    expect(() => parseRulesFile(withRule({ autoDebit: true }))).not.toThrow();
   });
   it('rifiuta una voce una tantum senza nome o tipo', () => {
     const d = emptyData();

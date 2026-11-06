@@ -62,3 +62,21 @@ describe('buildItems', () => {
     expect(items[0]).toMatchObject({ oneOffId: 'o1', paid: true, estimated: false });
   });
 });
+
+describe('addebito automatico', () => {
+  const auto = () => { const d = emptyTestData(); d.rules = [mkRule({ id: 'a', rrule: 'FREQ=MONTHLY;BYMONTHDAY=8', autoDebit: true }), mkRule({ id: 'm', rrule: 'FREQ=MONTHLY;BYMONTHDAY=8' })]; return d; };
+  it('alla scadenza una voce con addebito automatico risulta già pagata (alla sua data)', () => {
+    const items = buildItems(auto(), '2026-11-01', '2026-11-30', '2026-11-10');
+    expect(items.find((i) => i.ruleId === 'a')).toMatchObject({ paid: true, paidOn: '2026-11-08', autoDebit: true });
+    expect(items.find((i) => i.ruleId === 'm')).toMatchObject({ paid: false });
+  });
+  it('prima della scadenza non è ancora pagata', () => {
+    const items = buildItems(auto(), '2026-11-01', '2026-11-30', '2026-11-07');
+    expect(items.find((i) => i.ruleId === 'a')?.paid).toBe(false);
+  });
+  it('togliere la spunta (addebito non avvenuto) prevale sull automatico', () => {
+    const d = auto();
+    d.overrides = [{ ruleId: 'a', day: '2026-11-08', paid: false }];
+    expect(buildItems(d, '2026-11-01', '2026-11-30', '2026-11-10').find((i) => i.ruleId === 'a')?.paid).toBe(false);
+  });
+});

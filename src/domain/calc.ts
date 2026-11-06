@@ -26,7 +26,7 @@ export function residual(data: AppData, until: Day, today: Day): Cents | null {
   const cutoff = until < today ? until : today;
   let total = bal.value;
   // le rate arretrate si possono pagare molto dopo la scadenza: si guarda indietro di un anno
-  for (const i of buildItems(data, addDays(bal.day, -366), addDays(cutoff, 366))) {
+  for (const i of buildItems(data, addDays(bal.day, -366), addDays(cutoff, 366), today)) {
     if (i.skipped) continue;
     if (i.paid) {
       const when = i.paidOn ?? i.day; // le voci vecchie senza paidOn valgono alla scadenza
@@ -65,7 +65,7 @@ export function available(data: AppData, today: Day, payDay: number): Available 
   const res = residual(data, today, today);
   if (!bal || res === null) return null;
   const upTo = nextPayDay(today, payDay);
-  const debits = buildItems(data, addDays(bal.day, 1), addDays(upTo, -1)).filter((i) => i.kind === 'expense' && !i.paid && !i.skipped);
+  const debits = buildItems(data, addDays(bal.day, 1), addDays(upTo, -1), today).filter((i) => i.kind === 'expense' && !i.paid && !i.skipped);
   return { value: res - debits.reduce((s, i) => s + i.amount, 0), upTo, debits };
 }
 

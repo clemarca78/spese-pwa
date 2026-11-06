@@ -1,3 +1,4 @@
+import { todayLocal } from './days';
 import { expandRule } from './recurrence';
 import type { AppData, Cents, Day, Item, Override, Rule } from './types';
 
@@ -11,12 +12,14 @@ export function estimateVariable(rule: Rule, overrides: Override[], before?: Day
   return Math.round(real.reduce((s, o) => s + (o.amount as number), 0) / real.length);
 }
 
-export function buildItems(data: AppData, from: Day, to: Day): Item[] {
+/** `today`: le voci con addebito automatico risultano pagate dalla loro scadenza in poi. */
+export function buildItems(data: AppData, from: Day, to: Day, today: Day = todayLocal()): Item[] {
   const items: Item[] = [];
   for (const rule of data.rules) {
     for (const day of expandRule(rule, from, to)) {
       const o = data.overrides.find((x) => x.ruleId === rule.id && x.day === day);
       const hasAmount = o?.amount !== undefined;
+      const autoPaid = !!rule.autoDebit && o?.paid === undefined && day <= today;
       items.push({
         key: `${rule.id}@${day}`,
         ruleId: rule.id,
@@ -25,10 +28,11 @@ export function buildItems(data: AppData, from: Day, to: Day): Item[] {
         day,
         amount: hasAmount ? (o!.amount as number) : rule.variable ? estimateVariable(rule, data.overrides, day) : rule.amount,
         estimated: !hasAmount && rule.variable,
-        paid: o?.paid ?? false,
-        ...(o?.paidOn ? { paidOn: o.paidOn } : {}),
+        paid: o?.paid ?? autoPaid,
+        ...(autoPaid ? { paidOn: day } : o?.paidOn ? { paidOn: o.paidOn } : {}),
         ...(o?.paidAt ? { paidAt: o.paidAt } : {}),
         skipped: o?.skipped ?? false,
+        ...(rule.autoDebit ? { autoDebit: true } : {}),
       });
     }
   }
