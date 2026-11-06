@@ -195,7 +195,7 @@ export function Mese() {
             <strong>{formatEuro(bal.value)}</strong>
           </div>
           <div>
-            <small>Residuo</small>
+            <small>Sul conto (stimato)</small>
             <strong data-testid="residuo">{formatEuro(res ?? 0)}</strong>
           </div>
           <div>

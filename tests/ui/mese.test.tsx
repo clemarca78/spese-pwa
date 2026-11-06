@@ -34,7 +34,7 @@ describe('Mese', () => {
     expect(tid(container, 'da-pagare')).toContain('50,00'); // la bolletta non ancora pagata
     expect(tid(container, 'residuo')).toContain('1.500,00'); // nulla di pagato dopo il saldo
     expect(tid(container, 'disponibile')).toContain('1.450,00'); // saldo meno la bolletta in arrivo
-    expect(t).toMatch(/residuo/i);
+    expect(t).toContain('Sul conto (stimato)');
   });
   it('la spunta "pagata" aggiorna la voce', () => {
     withBalance();
@@ -261,7 +261,7 @@ describe('Mese', () => {
     data.value = emptyData();
     const { container, queryByText, getByText } = render(<Mese />);
     expect(getByText(/Inserisci il saldo/i)).toBeTruthy();
-    expect(queryByText(/residuo/i)).toBeNull();
+    expect(queryByText(/sul conto/i)).toBeNull();
     expect(text(container)).not.toContain('€ 0');
   });
   it('mostra l\'avviso di backup quando è dovuto', () => {

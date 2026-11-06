@@ -1,6 +1,6 @@
 # Spese
 
-PWA personale per tenere sotto controllo il conto corrente: saldo, spese ricorrenti, quanto resta da pagare e residuo, previsione del saldo e simulatore di una spesa futura ("posso permettermela?" / "quando posso farla?").
+PWA personale per tenere sotto controllo il conto corrente: saldo, spese ricorrenti, quanto resta da pagare, quanto hai sul conto (stimato) e quanto puoi ancora spendere, previsione del saldo e simulatore di una spesa futura ("posso permettermela?" / "quando posso farla?").
 
 - **Dati sul dispositivo** (IndexedDB), nessun server. Backup su file e sincronizzazione opzionale con Google Drive (cartella privata dell'app).
 - **Installabile su Android** (Chrome → "Installa app") e funzionante offline.
