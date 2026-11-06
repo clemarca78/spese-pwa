@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render } from '@testing-library/preact';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { data } from '../../src/state/store';
+import { addBalance, data } from '../../src/state/store';
 import { Mese, filtro, viewMonth } from '../../src/ui/Mese';
 import { emptyData } from '../../src/storage/backup';
 
@@ -117,6 +117,29 @@ describe('Mese', () => {
       fireEvent.click(getByText('Pagate'));
       expect(queryByText('Arretrati')).toBeNull();
     });
+  });
+  it('spuntare un uscita lo stesso giorno in cui hai inserito il saldo la scala dal residuo', async () => {
+    const d = emptyData();
+    d.rules = [{ id: 'den', name: 'Dentista', kind: 'expense', amount: 8500, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=1', start: '2026-01-01', active: true }];
+    d.settings.lastBackupAt = new Date().toISOString();
+    data.value = d;
+    const { getByLabelText, container } = render(<Mese />);
+    await addBalance(4482); // oggi (20/11 nei test)
+    fireEvent.click(getByLabelText('Pagata: Dentista'));
+    // 44,82 - 85,00
+    expect(tid(container, 'residuo')).toContain('-40,18');
+  });
+  it('una spesa Già pagata aggiunta dopo il saldo dello stesso giorno scala dal residuo', async () => {
+    const d = emptyData();
+    d.settings.lastBackupAt = new Date().toISOString();
+    data.value = d;
+    const { getByLabelText, getByText, container } = render(<Mese />);
+    await addBalance(4482); // oggi
+    fireEvent.input(getByLabelText('Nome voce'), { target: { value: 'supermercato' } });
+    fireEvent.input(getByLabelText('Importo voce'), { target: { value: '11,07' } });
+    fireEvent.click(getByLabelText('Già pagata'));
+    fireEvent.click(getByText('Aggiungi'));
+    expect(tid(container, 'residuo')).toContain('33,75'); // 44,82 - 11,07
   });
   it('"Già pagata" crea la voce già spuntata e il residuo scala comunque', () => {
     withBalance();

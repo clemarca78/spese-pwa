@@ -89,6 +89,7 @@ export function parseImport(text: string): AppData {
     day(x.day, 'override');
     if (x.amount !== undefined) int(x.amount, 'override');
     if (x.paidOn !== undefined) day(x.paidOn, 'override');
+    if (x.paidAt !== undefined && typeof x.paidAt !== 'string') fail('override non valido');
   });
   arr(o.oneOffs, 'voci una tantum').forEach((v) => {
     const x = obj(v, 'voce');
@@ -98,11 +99,13 @@ export function parseImport(text: string): AppData {
     int(x.amount, 'voce');
     day(x.day, 'voce');
     if (x.paidOn !== undefined) day(x.paidOn, 'voce');
+    if (x.paidAt !== undefined && typeof x.paidAt !== 'string') fail('voce non valida');
   });
   arr(o.balances, 'saldi').forEach((v) => {
     const x = obj(v, 'saldo');
     int(x.value, 'saldo');
     day(x.day, 'saldo');
+    if (x.at !== undefined && typeof x.at !== 'string') fail('saldo non valido');
   });
   const st = obj(o.settings, 'impostazioni');
   if (typeof st.varieEnabled !== 'boolean') fail('impostazioni incomplete');

@@ -87,6 +87,25 @@ describe('residual: data del pagamento (paidOn)', () => {
   });
 });
 
+describe('residual: ordine tra saldo e pagamento nello stesso giorno', () => {
+  const rule = mkRule({ id: 'den', name: 'Dentista', amount: 8500, rrule: 'FREQ=MONTHLY;BYMONTHDAY=1' });
+  it('con un saldo senza orario, una spunta fatta lo stesso giorno scala', () => {
+    const d = withBalance(); // saldo 03/11 senza orario
+    d.rules = [rule];
+    d.overrides = [{ ruleId: 'den', day: '2026-10-01', paid: true, paidOn: '2026-11-03', paidAt: '2026-11-03T09:00:00.000Z' }];
+    expect(residual(d, TODAY, TODAY)).toBe(150000 - 8500);
+  });
+  it('con un saldo con orario conta solo ciò che spunti dopo averlo inserito', () => {
+    const d = withBalance();
+    d.balances = [{ value: 150000, day: '2026-11-03', at: '2026-11-03T12:00:00.000Z' }];
+    d.rules = [rule];
+    d.overrides = [{ ruleId: 'den', day: '2026-10-01', paid: true, paidOn: '2026-11-03', paidAt: '2026-11-03T10:00:00.000Z' }];
+    expect(residual(d, TODAY, TODAY)).toBe(150000); // spuntata prima del saldo: è già dentro
+    d.overrides = [{ ruleId: 'den', day: '2026-10-01', paid: true, paidOn: '2026-11-03', paidAt: '2026-11-03T15:00:00.000Z' }];
+    expect(residual(d, TODAY, TODAY)).toBe(150000 - 8500);
+  });
+});
+
 describe('available (disponibile da spendere)', () => {
   function withRules() {
     const d = withBalance();

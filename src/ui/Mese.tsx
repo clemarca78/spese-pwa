@@ -5,7 +5,7 @@ import { addDays, endOfMonth, todayLocal } from '../domain/days';
 import { buildItems } from '../domain/items';
 import { formatEuro, parseEuro } from '../domain/money';
 import type { AppData, Day, Item, Kind } from '../domain/types';
-import { addBalance, addOneOff, data, deleteOneOff, setItemAmount, setPaid, setSkipped, updateOneOff } from '../state/store';
+import { addBalance, addOneOff, data, deleteOneOff, paidStamp, setItemAmount, setPaid, setSkipped, updateOneOff } from '../state/store';
 import { backupDue } from '../storage/backup';
 import { screen } from './Nav';
 
@@ -95,6 +95,12 @@ function arretrati(d: AppData, monthStart: Day): Item[] {
   return buildItems(d, starts[0], addDays(monthStart, -1)).filter((i) => i.kind === 'expense' && !i.paid && !i.skipped);
 }
 
+/** Una spesa già pagata con data prima del saldo è già nel saldo: niente istante, vale la data. */
+function stampFor(day: Day) {
+  const bal = latestBalance(data.value);
+  return !bal || day >= bal.day ? paidStamp() : {};
+}
+
 function AddOneOff() {
   const editing = data.value.oneOffs.find((o) => o.id === editingOneOff.value);
   const [name, setName] = useState(editing?.name ?? '');
@@ -110,11 +116,12 @@ function AddOneOff() {
         e.preventDefault();
         if (!name.trim() || cents === null) return;
         if (editing) {
-          void updateOneOff(editing.id, { name: name.trim(), kind, amount: cents, day, paid });
+          const stamp = paid === editing.paid ? {} : paid ? stampFor(day) : { paidOn: undefined, paidAt: undefined };
+          void updateOneOff(editing.id, { name: name.trim(), kind, amount: cents, day, paid, ...stamp });
           editingOneOff.value = null;
           return;
         }
-        void addOneOff({ name: name.trim(), kind, amount: cents, day, paid }).then(() => {
+        void addOneOff({ name: name.trim(), kind, amount: cents, day, paid, ...(paid ? stampFor(day) : {}) }).then(() => {
           setAlreadyPaid(false);
           setName('');
           setAmount('');

@@ -34,39 +34,32 @@ export async function mutate(fn: (d: AppData) => AppData): Promise<void> {
 }
 
 export function addBalance(value: Cents, day: Day = todayLocal()): Promise<void> {
-  return mutate((d) => ({ ...d, balances: [...d.balances.filter((b) => b.day !== day), { value, day }] }));
+  return mutate((d) => ({ ...d, balances: [...d.balances.filter((b) => b.day !== day), { value, day, at: new Date().toISOString() }] }));
 }
+
+const dropUndefined = <T extends object>(o: T): T =>
+  Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as T;
 
 function upsertOverride(d: AppData, item: Item, patch: Partial<Override>): AppData {
   const ruleId = item.ruleId as string;
   const rest = d.overrides.filter((o) => !(o.ruleId === ruleId && o.day === item.day));
   const prev = d.overrides.find((o) => o.ruleId === ruleId && o.day === item.day);
-  return { ...d, overrides: [...rest, { ...prev, ruleId, day: item.day, ...patch }] };
+  return { ...d, overrides: [...rest, dropUndefined({ ...prev, ruleId, day: item.day, ...patch })] };
 }
 
-/** Spuntare "pagata" ricorda il giorno del pagamento: conta quello per il residuo, non la scadenza. */
+/** Giorno e istante del pagamento: l'istante dice se è avvenuto prima o dopo l'ultimo saldo. */
+export const paidStamp = () => ({ paidOn: todayLocal(), paidAt: new Date().toISOString() });
+const noStamp = { paidOn: undefined, paidAt: undefined };
+
 export function setPaid(item: Item, paid: boolean): Promise<void> {
+  const stamp = paid ? paidStamp() : noStamp;
   if (item.oneOffId) {
     return mutate((d) => ({
       ...d,
-      oneOffs: d.oneOffs.map((o) => {
-        if (o.id !== item.oneOffId) return o;
-        const { paidOn: _drop, ...rest } = o;
-        return paid ? { ...rest, paid, paidOn: todayLocal() } : { ...rest, paid };
-      }),
+      oneOffs: d.oneOffs.map((o) => (o.id === item.oneOffId ? dropUndefined({ ...o, paid, ...stamp }) : o)),
     }));
   }
-  return mutate((d) => {
-    const next = upsertOverride(d, item, { paid, paidOn: paid ? todayLocal() : undefined });
-    return {
-      ...next,
-      overrides: next.overrides.map((o) => {
-        if (o.ruleId !== item.ruleId || o.day !== item.day || o.paidOn !== undefined) return o;
-        const { paidOn: _drop, ...rest } = o;
-        return rest;
-      }),
-    };
-  });
+  return mutate((d) => upsertOverride(d, item, { paid, ...stamp }));
 }
 
 /** Scambio sincrono: se nel frattempo c'è stata una modifica locale non sovrascrive nulla. */
@@ -90,7 +83,7 @@ export function setItemAmount(item: Item, amount: Cents): Promise<void> {
 }
 
 export function updateOneOff(id: string, patch: Partial<Omit<OneOff, 'id'>>): Promise<void> {
-  return mutate((d) => ({ ...d, oneOffs: d.oneOffs.map((o) => (o.id === id ? { ...o, ...patch } : o)) }));
+  return mutate((d) => ({ ...d, oneOffs: d.oneOffs.map((o) => (o.id === id ? dropUndefined({ ...o, ...patch }) : o)) }));
 }
 
 export function deleteOneOff(id: string): Promise<void> {

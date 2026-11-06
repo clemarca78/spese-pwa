@@ -1,4 +1,4 @@
-import { latestBalance } from './calc';
+import { latestBalance, paidAfterBalance } from './calc';
 import { addDays } from './days';
 import { buildItems } from './items';
 import type { AppData, Cents, Day, ForecastPoint } from './types';
@@ -17,7 +17,7 @@ export function forecast(data: AppData, horizonDays: number): ForecastPoint[] {
   const firstDay = addDays(bal.day, 1);
   // voci con scadenza passata ma pagate dopo il saldo: il saldo non le contiene, pesano sul primo giorno futuro
   for (const it of buildItems(data, addDays(bal.day, -366), bal.day)) {
-    if (!it.paid || it.skipped || !it.paidOn || it.paidOn <= bal.day) continue;
+    if (!it.paid || it.skipped || !it.paidOn || !paidAfterBalance(it, bal)) continue;
     byDay.set(firstDay, (byDay.get(firstDay) ?? 0) + (it.kind === 'income' ? it.amount : -it.amount));
   }
   const varie = data.settings.varieEnabled ? estimateDailyVarie(data) : 0;

@@ -21,6 +21,8 @@ export interface Override {
   paid?: boolean;
   /** Giorno in cui hai spuntato "pagata": conta per il residuo al posto della scadenza. */
   paidOn?: Day;
+  /** Istante preciso della spunta: serve a capire se è successa prima o dopo l'ultimo saldo. */
+  paidAt?: string;
   skipped?: boolean;
 }
 export interface OneOff {
@@ -31,10 +33,13 @@ export interface OneOff {
   day: Day;
   paid: boolean;
   paidOn?: Day;
+  paidAt?: string;
 }
 export interface Balance {
   value: Cents;
   day: Day;
+  /** Istante in cui hai inserito il saldo (assente nei saldi vecchi). */
+  at?: string;
 }
 export interface Settings {
   varieEnabled: boolean;
@@ -64,6 +69,7 @@ export interface Item {
   estimated: boolean;
   paid: boolean;
   paidOn?: Day;
+  paidAt?: string;
   skipped: boolean;
 }
 export interface ForecastPoint {

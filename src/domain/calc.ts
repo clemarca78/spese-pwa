@@ -8,6 +8,15 @@ export function latestBalance(data: AppData): Balance | undefined {
 }
 
 /**
+ * Un pagamento pesa sul residuo se è avvenuto dopo l'ultimo saldo. Con l'istante (paidAt) si distingue anche
+ * dentro lo stesso giorno; le voci vecchie, senza istante, valgono alla data (paidOn o scadenza).
+ */
+export function paidAfterBalance(i: Item, bal: Balance): boolean {
+  if (i.paidAt) return bal.at ? i.paidAt >= bal.at : (i.paidOn ?? i.day) >= bal.day;
+  return (i.paidOn ?? i.day) > bal.day;
+}
+
+/**
  * Residuo = saldo − uscite pagate dopo il saldo + entrate incassate dopo il saldo.
  * Conta il giorno in cui hai spuntato "pagata" (paidOn), altrimenti la scadenza, fino a `min(until, today)`.
  */
@@ -21,7 +30,7 @@ export function residual(data: AppData, until: Day, today: Day): Cents | null {
     if (i.skipped) continue;
     if (i.paid) {
       const when = i.paidOn ?? i.day; // le voci vecchie senza paidOn valgono alla scadenza
-      if (when > bal.day && when <= cutoff) total += i.kind === 'income' ? i.amount : -i.amount;
+      if (paidAfterBalance(i, bal) && when <= cutoff) total += i.kind === 'income' ? i.amount : -i.amount;
     }
   }
   return total;

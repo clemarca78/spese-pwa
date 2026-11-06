@@ -56,11 +56,11 @@ describe('store', () => {
   it('addBalance aggiunge un saldo e sostituisce quello dello stesso giorno', async () => {
     await addBalance(1000, '2026-11-03');
     await addBalance(2000, '2026-11-03');
-    expect(data.value.balances).toEqual([{ value: 2000, day: '2026-11-03' }]);
+    expect(data.value.balances).toEqual([{ value: 2000, day: '2026-11-03', at: expect.any(String) }]);
   });
   it('setPaid su una voce di regola crea un override', async () => {
     await setPaid(ruleItem, true);
-    expect(data.value.overrides).toEqual([{ ruleId: 'r1', day: '2026-11-24', paid: true, paidOn: todayLocal() }]);
+    expect(data.value.overrides).toEqual([{ ruleId: 'r1', day: '2026-11-24', paid: true, paidOn: todayLocal(), paidAt: expect.any(String) }]);
     await setPaid(ruleItem, false);
     expect(data.value.overrides).toEqual([{ ruleId: 'r1', day: '2026-11-24', paid: false }]);
   });
@@ -68,10 +68,11 @@ describe('store', () => {
     await addOneOff({ name: 'a', kind: 'expense', amount: 500, day: '2026-11-10', paid: false });
     const id = data.value.oneOffs[0].id;
     await setPaid({ ...ruleItem, ruleId: undefined, oneOffId: id }, true);
-    expect(data.value.oneOffs[0]).toMatchObject({ paid: true, paidOn: todayLocal() });
+    expect(data.value.oneOffs[0]).toMatchObject({ paid: true, paidOn: todayLocal(), paidAt: expect.any(String) });
     await setPaid({ ...ruleItem, ruleId: undefined, oneOffId: id }, false);
     expect(data.value.oneOffs[0].paid).toBe(false);
     expect('paidOn' in data.value.oneOffs[0]).toBe(false);
+    expect('paidAt' in data.value.oneOffs[0]).toBe(false);
   });
   it('setSkipped segna una occorrenza come non dovuta e si può annullare', async () => {
     await setSkipped(ruleItem, true);
