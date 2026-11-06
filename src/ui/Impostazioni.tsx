@@ -80,16 +80,16 @@ export function Impostazioni() {
       </section>
 
       <section class="card">
-        <h3>Stipendio</h3>
+        <h3>Data di riferimento</h3>
         <div class="row">
-          <label>Giorno dello stipendio (1-28){' '}
-            <input type="number" min="1" max="28" aria-label="Giorno dello stipendio" value={s.payDay ?? 10}
+          <label>Giorno di riferimento: quando arriva lo stipendio (1-28){' '}
+            <input type="number" min="1" max="28" aria-label="Giorno di riferimento" value={s.payDay ?? 10}
               onInput={(e) => {
                 const v = Math.trunc(Number(e.currentTarget.value));
                 if (v >= 1 && v <= 28) void mutate((d) => ({ ...d, settings: { ...d.settings, payDay: v } }));
               }} /></label>
         </div>
-        <p class="muted">Il "Disponibile da spendere" toglie dal saldo le uscite non pagate prima di questo giorno.</p>
+        <p class="muted">"Usabile" è quanto hai sul conto meno le uscite non pagate prima di questo giorno: dopo quella data arrivano nuovi soldi.</p>
       </section>
 
       <section class="card">

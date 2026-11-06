@@ -203,7 +203,7 @@ export function Mese() {
             <strong data-testid="da-pagare">{formatEuro(debitsTotal)}</strong>
           </div>
           <div class={`wide ${av && av.value < 0 ? 'neg' : 'pos'}`}>
-            <small>Disponibile da spendere</small>
+            <small>Usabile fino al {av ? av.upTo.split('-').reverse().slice(0, 2).join('/') : ''}</small>
             <strong class="big" data-testid="disponibile">{formatEuro(av?.value ?? 0)}</strong>
           </div>
           <details>
