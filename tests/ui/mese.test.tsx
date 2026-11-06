@@ -160,6 +160,22 @@ describe('Mese', () => {
     expect(getByText('addebito automatico')).toBeTruthy();
     expect(getByText('accredito automatico')).toBeTruthy();
   });
+  it('l importo delle voci automatiche a importo fisso non si modifica, quello variabile sì', () => {
+    const d = emptyData();
+    d.balances = [{ value: 150000, day: '2026-11-03' }];
+    d.settings.lastBackupAt = new Date().toISOString();
+    d.rules = [
+      { id: 't', name: 'Tim', kind: 'expense', amount: 2789, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=8', start: '2026-11-01', active: true, autoDebit: true },
+      { id: 'e', name: 'Enel', kind: 'expense', amount: 6000, variable: true, rrule: 'FREQ=MONTHLY;BYMONTHDAY=9', start: '2026-11-01', active: true, autoDebit: true },
+      { id: 'p', name: 'Palestra', kind: 'expense', amount: 4000, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=10', start: '2026-11-01', active: true },
+    ];
+    data.value = d;
+    const { queryByLabelText, getByText } = render(<Mese />);
+    expect(queryByLabelText('Importo: Tim')).toBeNull();
+    expect(getByText('27,89')).toBeTruthy();
+    expect(queryByLabelText('Importo: Enel')).toBeTruthy();
+    expect(queryByLabelText('Importo: Palestra')).toBeTruthy();
+  });
   it('"Già pagata" crea la voce già spuntata e il residuo scala comunque', () => {
     withBalance();
     const { getByLabelText, getByText, container } = render(<Mese />);

@@ -65,17 +65,21 @@ function ItemRow({ item, arretrato }: { item: Item; arretrato?: boolean }) {
         {item.estimated ? <small> stima</small> : null}
         {item.autoDebit ? <small> {item.kind === 'income' ? 'accredito' : 'addebito'} automatico</small> : null}
       </span>
-      <input
-        class="amount"
-        inputMode="decimal"
-        aria-label={`Importo: ${label}`}
-        defaultValue={plain(item.amount)}
-        key={item.key + item.amount}
-        onBlur={(e) => {
-          const c = parseEuro(e.currentTarget.value);
-          if (c !== null && c !== item.amount) void setItemAmount(item, c);
-        }}
-      />
+      {item.locked ? (
+        <span class="amount static">{plain(item.amount)}</span>
+      ) : (
+        <input
+          class="amount"
+          inputMode="decimal"
+          aria-label={`Importo: ${label}`}
+          defaultValue={plain(item.amount)}
+          key={item.key + item.amount}
+          onBlur={(e) => {
+            const c = parseEuro(e.currentTarget.value);
+            if (c !== null && c !== item.amount) void setItemAmount(item, c);
+          }}
+        />
+      )}
       {item.oneOffId ? (
         <div class="actions">
           <button class="link" aria-label={`Modifica: ${item.name}`} onClick={() => (editingOneOff.value = item.oneOffId as string)}>Modifica</button>

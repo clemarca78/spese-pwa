@@ -33,6 +33,7 @@ export function buildItems(data: AppData, from: Day, to: Day, today: Day = today
         ...(o?.paidAt ? { paidAt: o.paidAt } : {}),
         skipped: o?.skipped ?? false,
         ...(rule.autoDebit ? { autoDebit: true } : {}),
+        ...(rule.autoDebit && !rule.variable ? { locked: true } : {}),
       });
     }
   }

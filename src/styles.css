@@ -85,3 +85,4 @@ button.link.danger { color: var(--neg); }
 .filters { gap: 6px; }
 .filters .chip { padding: 8px 4px; }
 .auto-mark { text-align: center; color: var(--muted); font-size: 1.2rem; }
+.item .amount.static { padding: 8px 10px; text-align: right; font-variant-numeric: tabular-nums; }
