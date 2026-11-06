@@ -64,6 +64,17 @@ describe('Mese', () => {
     expect(tid(container, 'disponibile')).toContain('1.387,11');
     expect(getByText('Da pagare prima del 10/12')).toBeTruthy();
   });
+  it('spuntare oggi una rata arretrata (scadenza prima del saldo) scala dal residuo', () => {
+    const d = emptyData();
+    d.balances = [{ value: 150000, day: '2026-11-03' }];
+    d.settings.lastBackupAt = new Date().toISOString();
+    d.rules = [{ id: 'den', name: 'Dentista', kind: 'expense', amount: 8500, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=1', start: '2026-01-01', active: true }];
+    data.value = d;
+    const { getByLabelText, container } = render(<Mese />);
+    expect(tid(container, 'residuo')).toContain('1.500,00');
+    fireEvent.click(getByLabelText('Pagata: Dentista'));
+    expect(tid(container, 'residuo')).toContain('1.415,00');
+  });
   it('permette di segnare una voce slittata prima del saldo come ancora da addebitare', () => {
     const d = emptyData();
     d.balances = [{ value: 150000, day: '2026-11-03' }];

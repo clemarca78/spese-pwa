@@ -26,6 +26,7 @@ export function buildItems(data: AppData, from: Day, to: Day): Item[] {
         amount: hasAmount ? (o!.amount as number) : rule.variable ? estimateVariable(rule, data.overrides, day) : rule.amount,
         estimated: !hasAmount && rule.variable,
         paid: o?.paid ?? false,
+        ...(o?.paidOn ? { paidOn: o.paidOn } : {}),
         skipped: o?.skipped ?? false,
         pendingDebit: o?.pendingDebit ?? false,
       });
@@ -35,7 +36,7 @@ export function buildItems(data: AppData, from: Day, to: Day): Item[] {
     if (o.day < from || o.day > to) continue;
     items.push({
       key: o.id, oneOffId: o.id, name: o.name, kind: o.kind, day: o.day, amount: o.amount,
-      estimated: false, paid: o.paid, skipped: false, pendingDebit: false,
+      estimated: false, paid: o.paid, ...(o.paidOn ? { paidOn: o.paidOn } : {}), skipped: false, pendingDebit: false,
     });
   }
   return items.sort((a, b) => a.day.localeCompare(b.day) || a.name.localeCompare(b.name));

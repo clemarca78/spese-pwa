@@ -19,6 +19,8 @@ export interface Override {
   day: Day;
   amount?: Cents;
   paid?: boolean;
+  /** Giorno in cui hai spuntato "pagata": conta per il residuo al posto della scadenza. */
+  paidOn?: Day;
   skipped?: boolean;
   pendingDebit?: boolean;
 }
@@ -29,6 +31,7 @@ export interface OneOff {
   amount: Cents;
   day: Day;
   paid: boolean;
+  paidOn?: Day;
 }
 export interface Balance {
   value: Cents;
@@ -61,6 +64,7 @@ export interface Item {
   amount: Cents;
   estimated: boolean;
   paid: boolean;
+  paidOn?: Day;
   skipped: boolean;
   pendingDebit: boolean;
 }

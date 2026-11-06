@@ -58,6 +58,42 @@ describe('residual', () => {
   });
 });
 
+describe('residual: data del pagamento (paidOn)', () => {
+  const dentist = () => mkRule({ id: 'dent', name: 'Dentista', amount: 8500, rrule: 'FREQ=MONTHLY;BYMONTHDAY=1' });
+  it('una rata arretrata pagata dopo il saldo scala dal residuo anche se scadeva prima', () => {
+    const d = withBalance();
+    d.rules = [dentist()];
+    d.overrides = [{ ruleId: 'dent', day: '2026-10-01', paid: true, paidOn: '2026-11-05' }];
+    expect(residual(d, TODAY, TODAY)).toBe(150000 - 8500);
+  });
+  it('più rate arretrate pagate insieme scalano tutte', () => {
+    const d = withBalance();
+    d.rules = [dentist()];
+    d.overrides = [
+      { ruleId: 'dent', day: '2026-09-01', paid: true, paidOn: '2026-11-05' },
+      { ruleId: 'dent', day: '2026-10-01', paid: true, paidOn: '2026-11-05' },
+    ];
+    expect(residual(d, TODAY, TODAY)).toBe(150000 - 2 * 8500);
+  });
+  it('pagata prima o il giorno del saldo non scala (è già nel saldo)', () => {
+    const d = withBalance();
+    d.rules = [dentist()];
+    d.overrides = [{ ruleId: 'dent', day: '2026-10-01', paid: true, paidOn: '2026-11-03' }];
+    expect(residual(d, TODAY, TODAY)).toBe(150000);
+  });
+  it('senza paidOn vale la data della voce (voci vecchie)', () => {
+    const d = withBalance();
+    d.rules = [dentist()];
+    d.overrides = [{ ruleId: 'dent', day: '2026-10-01', paid: true }];
+    expect(residual(d, TODAY, TODAY)).toBe(150000);
+  });
+  it('una voce con scadenza futura pagata in anticipo scala subito', () => {
+    const d = withBalance();
+    d.oneOffs = [oneOff({ day: '2026-11-25', paid: true, paidOn: '2026-11-05' })];
+    expect(residual(d, '2026-11-06', '2026-11-06')).toBe(150000 - 5000);
+  });
+});
+
 describe('available (disponibile da spendere)', () => {
   function withRules() {
     const d = withBalance();

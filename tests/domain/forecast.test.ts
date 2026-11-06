@@ -28,6 +28,11 @@ describe('forecast', () => {
     const pts = forecast(d, 2);
     expect(pts.map((p) => p.balance)).toEqual([100000, 300000, 250000]);
   });
+  it('una voce con scadenza prima del saldo ma pagata dopo il saldo pesa sul primo giorno', () => {
+    const d = base();
+    d.oneOffs = [oo({ day: '2026-10-01', amount: 8500, paid: true, paidOn: '2026-11-04' })];
+    expect(forecast(d, 1).map((p) => p.balance)).toEqual([100000, 91500]);
+  });
   it('sottrae le spese varie se attive', () => {
     const d = base();
     d.settings.varieEnabled = true;

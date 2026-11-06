@@ -20,6 +20,11 @@ export function forecast(data: AppData, horizonDays: number): ForecastPoint[] {
     if (!it.pendingDebit || it.skipped) continue;
     byDay.set(firstDay, (byDay.get(firstDay) ?? 0) + (it.kind === 'income' ? it.amount : -it.amount));
   }
+  // voci con scadenza passata ma pagate dopo il saldo: il saldo non le contiene, pesano sul primo giorno futuro
+  for (const it of buildItems(data, addDays(bal.day, -366), bal.day)) {
+    if (!it.paid || it.skipped || !it.paidOn || it.paidOn <= bal.day) continue;
+    byDay.set(firstDay, (byDay.get(firstDay) ?? 0) + (it.kind === 'income' ? it.amount : -it.amount));
+  }
   const varie = data.settings.varieEnabled ? estimateDailyVarie(data) : 0;
   const points: ForecastPoint[] = [{ day: bal.day, balance: bal.value }];
   let cur = bal.value;

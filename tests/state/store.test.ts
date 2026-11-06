@@ -1,5 +1,6 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { todayLocal } from '../../src/domain/days';
 import type { Item } from '../../src/domain/types';
 import { addBalance, addOneOff, data, deleteOneOff, deleteRule, initStore, mutate, setItemAmount, setPaid, updateOneOff } from '../../src/state/store';
 import { emptyData } from '../../src/storage/backup';
@@ -59,15 +60,18 @@ describe('store', () => {
   });
   it('setPaid su una voce di regola crea un override', async () => {
     await setPaid(ruleItem, true);
-    expect(data.value.overrides).toEqual([{ ruleId: 'r1', day: '2026-11-24', paid: true }]);
+    expect(data.value.overrides).toEqual([{ ruleId: 'r1', day: '2026-11-24', paid: true, paidOn: todayLocal() }]);
     await setPaid(ruleItem, false);
-    expect(data.value.overrides[0].paid).toBe(false);
+    expect(data.value.overrides).toEqual([{ ruleId: 'r1', day: '2026-11-24', paid: false }]);
   });
   it('setPaid su una una tantum aggiorna la voce', async () => {
     await addOneOff({ name: 'a', kind: 'expense', amount: 500, day: '2026-11-10', paid: false });
     const id = data.value.oneOffs[0].id;
     await setPaid({ ...ruleItem, ruleId: undefined, oneOffId: id }, true);
-    expect(data.value.oneOffs[0].paid).toBe(true);
+    expect(data.value.oneOffs[0]).toMatchObject({ paid: true, paidOn: todayLocal() });
+    await setPaid({ ...ruleItem, ruleId: undefined, oneOffId: id }, false);
+    expect(data.value.oneOffs[0].paid).toBe(false);
+    expect('paidOn' in data.value.oneOffs[0]).toBe(false);
   });
   it('setItemAmount crea un override con importo reale', async () => {
     await setItemAmount(ruleItem, 12345);

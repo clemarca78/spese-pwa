@@ -10,20 +10,23 @@ export function latestBalance(data: AppData): Balance | undefined {
 }
 
 /**
- * Residuo = saldo − uscite già pagate dopo il saldo + entrate già incassate dopo il saldo.
- * Contano solo le voci spuntate con data fino a `min(until, today)`; le uscite slittate
+ * Residuo = saldo − uscite pagate dopo il saldo + entrate incassate dopo il saldo.
+ * Conta il giorno in cui hai spuntato "pagata" (paidOn), altrimenti la scadenza, fino a `min(until, today)`; le uscite slittate
  * "ancora da addebitare" scalano perché il saldo non le contiene ancora.
  */
 export function residual(data: AppData, until: Day, today: Day): Cents | null {
   const bal = latestBalance(data);
   if (!bal) return null;
   const cutoff = until < today ? until : today;
+  const pendingFrom = addDays(bal.day, -PENDING_LOOKBACK_DAYS);
   let total = bal.value;
-  for (const i of buildItems(data, addDays(bal.day, -PENDING_LOOKBACK_DAYS), until)) {
+  // le rate arretrate si possono pagare molto dopo la scadenza: si guarda indietro di un anno
+  for (const i of buildItems(data, addDays(bal.day, -366), addDays(cutoff, 366))) {
     if (i.skipped) continue;
-    if (i.day > bal.day) {
-      if (i.paid && i.day <= cutoff) total += i.kind === 'income' ? i.amount : -i.amount;
-    } else if (i.kind === 'expense' && i.pendingDebit) {
+    if (i.paid) {
+      const when = i.paidOn ?? i.day; // le voci vecchie senza paidOn valgono alla scadenza
+      if (when > bal.day && when <= cutoff) total += i.kind === 'income' ? i.amount : -i.amount;
+    } else if (i.kind === 'expense' && i.pendingDebit && i.day <= bal.day && i.day >= pendingFrom) {
       total -= i.amount;
     }
   }

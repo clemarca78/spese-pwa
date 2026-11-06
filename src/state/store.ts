@@ -44,11 +44,29 @@ function upsertOverride(d: AppData, item: Item, patch: Partial<Override>): AppDa
   return { ...d, overrides: [...rest, { ...prev, ruleId, day: item.day, ...patch }] };
 }
 
+/** Spuntare "pagata" ricorda il giorno del pagamento: conta quello per il residuo, non la scadenza. */
 export function setPaid(item: Item, paid: boolean): Promise<void> {
   if (item.oneOffId) {
-    return mutate((d) => ({ ...d, oneOffs: d.oneOffs.map((o) => (o.id === item.oneOffId ? { ...o, paid } : o)) }));
+    return mutate((d) => ({
+      ...d,
+      oneOffs: d.oneOffs.map((o) => {
+        if (o.id !== item.oneOffId) return o;
+        const { paidOn: _drop, ...rest } = o;
+        return paid ? { ...rest, paid, paidOn: todayLocal() } : { ...rest, paid };
+      }),
+    }));
   }
-  return mutate((d) => upsertOverride(d, item, { paid }));
+  return mutate((d) => {
+    const next = upsertOverride(d, item, { paid, paidOn: paid ? todayLocal() : undefined });
+    return {
+      ...next,
+      overrides: next.overrides.map((o) => {
+        if (o.ruleId !== item.ruleId || o.day !== item.day || o.paidOn !== undefined) return o;
+        const { paidOn: _drop, ...rest } = o;
+        return rest;
+      }),
+    };
+  });
 }
 
 /** Scambio sincrono: se nel frattempo c'è stata una modifica locale non sovrascrive nulla. */

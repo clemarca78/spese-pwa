@@ -88,6 +88,7 @@ export function parseImport(text: string): AppData {
     if (typeof x.ruleId !== 'string') fail('override non valido');
     day(x.day, 'override');
     if (x.amount !== undefined) int(x.amount, 'override');
+    if (x.paidOn !== undefined) day(x.paidOn, 'override');
   });
   arr(o.oneOffs, 'voci una tantum').forEach((v) => {
     const x = obj(v, 'voce');
@@ -96,6 +97,7 @@ export function parseImport(text: string): AppData {
     if (typeof x.paid !== 'boolean') fail('voce non valida');
     int(x.amount, 'voce');
     day(x.day, 'voce');
+    if (x.paidOn !== undefined) day(x.paidOn, 'voce');
   });
   arr(o.balances, 'saldi').forEach((v) => {
     const x = obj(v, 'saldo');
