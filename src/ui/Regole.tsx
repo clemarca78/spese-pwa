@@ -23,10 +23,17 @@ function nextDates(rule: Rule, n: number): string[] {
 }
 
 const autoLabel = (k: Kind) => (k === 'income' ? 'Accredito automatico sul conto' : 'Addebito automatico sul conto');
+const GROUPS: Array<{ key: string; title: string; test: (r: Rule) => boolean }> = [
+  { key: 'entrate', title: 'Entrate', test: (r) => r.kind === 'income' },
+  { key: 'auto', title: 'Uscite con addebito automatico', test: (r) => r.kind === 'expense' && !!r.autoDebit },
+  { key: 'altre', title: 'Altre uscite', test: (r) => r.kind === 'expense' && !r.autoDebit },
+];
 const EMPTY_SPEC: RecurrenceSpec = { freq: 'monthly', interval: 1, monthDay: 1 };
 
 export function Regole() {
   const [view, setView] = useState<'list' | 'form'>('list');
+  const [query, setQuery] = useState('');
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [kind, setKind] = useState<Kind>('expense');
@@ -90,6 +97,12 @@ export function Regole() {
     reset();
   }
 
+  const q = query.trim().toLowerCase();
+  // attive prima, poi per nome
+  const visible = [...data.value.rules]
+    .filter((r) => !q || r.name.toLowerCase().includes(q))
+    .sort((a, b) => Number(b.active) - Number(a.active) || a.name.localeCompare(b.name));
+  const found = visible.length;
   const num = (v: string) => Math.trunc(Number(v));
   const weekdayPills = () =>
     WD_LABEL.map((l, i) => (
@@ -102,32 +115,47 @@ export function Regole() {
     <main class="screen">
       <h2>Regole</h2>
       <button onClick={() => setView('form')}>Nuova regola</button>
-      <ul class="items">
-        {data.value.rules.map((r) => (
-          <li class={`item rule ${r.active ? '' : 'skipped'}`} key={r.id}>
-            <input type="checkbox" aria-label={`Attiva: ${r.name}`} checked={r.active}
-              onChange={(e) => {
-                const active = e.currentTarget.checked;
-                void mutate((d) => ({ ...d, rules: d.rules.map((x) => (x.id === r.id ? { ...x, active } : x)) }));
-              }} />
-            <span class="day">{r.kind === 'income' ? '+' : '−'}</span>
-            <span class="name">
-              {r.name}
-              <small> {r.monthAmounts ? 'importi per mese' : formatEuro(r.amount)}{r.variable ? ' (variabile)' : ''}{r.autoDebit ? ` · ${r.kind === 'income' ? 'accredito' : 'addebito'} automatico` : ''}{nextDates(r, 1)[0] ? ` · prossima ${fmtDay(nextDates(r, 1)[0])}` : ''}</small>
-            </span>
-            <span class="actions">
-              <button class="link" onClick={() => edit(r)}>Modifica</button>
-              <button class="link danger" aria-label={`Elimina: ${r.name}`}
-                onClick={() => {
-                  if (!window.confirm(`Eliminare la regola "${r.name}"? Spariranno anche le sue correzioni mensili.`)) return;
-                  if (editingId === r.id) reset();
-                  void deleteRule(r.id);
-                }}>Elimina</button>
-            </span>
-          </li>
-        ))}
-        {data.value.rules.length === 0 ? <li class="empty">Nessuna regola ancora.</li> : null}
-      </ul>
+      {data.value.rules.length > 0 ? (
+        <input class="search" type="search" aria-label="Cerca regola" placeholder="Cerca per nome" value={query}
+          onInput={(e) => setQuery(e.currentTarget.value)} />
+      ) : null}
+      {data.value.rules.length === 0 ? <p class="empty">Nessuna regola ancora.</p> : null}
+      {data.value.rules.length > 0 && found === 0 ? <p class="empty">Nessuna regola trovata.</p> : null}
+      {GROUPS.map((g) => {
+        const rules = visible.filter(g.test);
+        if (rules.length === 0) return null;
+        return (
+          <details class="group-rules" key={g.key} open={!!q || !!openGroups[g.key]}
+            onToggle={(e) => { if (!q) setOpenGroups({ ...openGroups, [g.key]: e.currentTarget.open }); }}>
+            <summary>{g.title} · {rules.length}</summary>
+            <ul class="items">
+              {rules.map((r) => (
+                <li class={`item rule ${r.active ? '' : 'skipped'}`} key={r.id}>
+                  <input type="checkbox" aria-label={`Attiva: ${r.name}`} checked={r.active}
+                    onChange={(e) => {
+                      const active = e.currentTarget.checked;
+                      void mutate((d) => ({ ...d, rules: d.rules.map((x) => (x.id === r.id ? { ...x, active } : x)) }));
+                    }} />
+                  <span class="day">{r.kind === 'income' ? '+' : '−'}</span>
+                  <span class="name">
+                    {r.name}
+                    <small> {r.monthAmounts ? 'importi per mese' : formatEuro(r.amount)}{r.variable ? ' (variabile)' : ''}{r.autoDebit ? ` · ${r.kind === 'income' ? 'accredito' : 'addebito'} automatico` : ''}{nextDates(r, 1)[0] ? ` · prossima ${fmtDay(nextDates(r, 1)[0])}` : ''}</small>
+                  </span>
+                  <span class="actions">
+                    <button class="link" onClick={() => edit(r)}>Modifica</button>
+                    <button class="link danger" aria-label={`Elimina: ${r.name}`}
+                      onClick={() => {
+                        if (!window.confirm(`Eliminare la regola "${r.name}"? Spariranno anche le sue correzioni mensili.`)) return;
+                        if (editingId === r.id) reset();
+                        void deleteRule(r.id);
+                      }}>Elimina</button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        );
+      })}
     </main>
     );
   }

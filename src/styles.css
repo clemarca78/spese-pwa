@@ -99,3 +99,7 @@ button.link.danger { color: var(--neg); }
 .flow-nums, .flow-total { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: .85rem; font-variant-numeric: tabular-nums; }
 .flow-total { margin-top: 10px; font-size: .95rem; }
 .flow .items { margin-top: 8px; }
+.search { width: 100%; margin: 12px 0 4px; }
+.group-rules { margin: 8px 0; border: 1px solid var(--line); border-radius: 12px; background: var(--card); padding: 0 12px; }
+.group-rules > summary { cursor: pointer; padding: 12px 0; font-weight: 600; }
+.group-rules[open] > summary { border-bottom: 1px solid var(--line); }

@@ -123,6 +123,46 @@ describe('Regole', () => {
     expect(data.value.overrides.map((o) => o.ruleId)).toEqual(['r2']);
     confirm.mockRestore();
   });
+  describe('gruppi e ricerca', () => {
+    const R = (id: string, name: string, extra: Partial<import('../../src/domain/types').Rule> = {}) => ({
+      id, name, kind: 'expense' as const, amount: 1000, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=10', start: '2026-01-01', active: true, ...extra,
+    });
+    function setupRules() {
+      const d = emptyData();
+      d.rules = [
+        R('1', 'Tim', { autoDebit: true }),
+        R('2', 'Enel luce', { autoDebit: true }),
+        R('3', 'Palestra'),
+        R('4', 'Dentista', { active: false }),
+        R('5', 'INPS', { kind: 'income', autoDebit: true }),
+      ];
+      data.value = d;
+    }
+    it('raggruppa le regole in Entrate, Uscite con addebito automatico e Altre uscite con il conteggio', () => {
+      setupRules();
+      const r = render(<Regole />);
+      const titles = Array.from(r.container.querySelectorAll('details.group-rules > summary')).map((e) => e.textContent);
+      expect(titles).toEqual(['Entrate · 1', 'Uscite con addebito automatico · 2', 'Altre uscite · 2']);
+    });
+    it('le regole disattivate stanno in fondo al loro gruppo', () => {
+      setupRules();
+      const r = render(<Regole />);
+      const altre = r.container.querySelectorAll('details.group-rules')[2];
+      const names = Array.from(altre.querySelectorAll('.name')).map((e) => e.textContent?.split(' ')[0]);
+      expect(names).toEqual(['Palestra', 'Dentista']);
+    });
+    it('la ricerca per nome filtra, ignora maiuscole e apre i gruppi', () => {
+      setupRules();
+      const r = render(<Regole />);
+      fireEvent.input(r.getByLabelText('Cerca regola'), { target: { value: 'enel' } });
+      expect(r.queryByLabelText('Attiva: Enel luce')).toBeTruthy();
+      expect(r.queryByLabelText('Attiva: Tim')).toBeNull();
+      const openOnes = r.container.querySelectorAll('details.group-rules[open]');
+      expect(openOnes).toHaveLength(1);
+      fireEvent.input(r.getByLabelText('Cerca regola'), { target: { value: 'zzz' } });
+      expect(r.getByText('Nessuna regola trovata.')).toBeTruthy();
+    });
+  });
   it('elenca le regole esistenti e permette di disattivarle', () => {
     const d = emptyData();
     d.rules = [{ id: 'r1', name: 'Palestra', kind: 'expense', amount: 2500, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=10', start: '2026-01-01', active: true }];
