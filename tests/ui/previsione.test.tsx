@@ -48,3 +48,23 @@ describe('Previsione', () => {
     expect(getByText(/Inserisci il saldo/i)).toBeTruthy();
   });
 });
+
+describe('Previsione: entrate e uscite per mese', () => {
+  it('mostra i totali di ogni mese e le voci dentro', () => {
+    const d = emptyData();
+    d.balances = [{ value: 100000, day: '2026-11-03' }];
+    d.oneOffs = [
+      { id: 'a', name: 'bolletta', kind: 'expense', amount: 30000, day: '2026-11-05', paid: false },
+      { id: 'b', name: 'rimborso', kind: 'income', amount: 50000, day: '2026-12-10', paid: false },
+    ];
+    data.value = d;
+    const { getByText, getAllByTestId } = render(<Previsione />);
+    expect(getByText('novembre 2026')).toBeTruthy();
+    expect(getByText('dicembre 2026')).toBeTruthy();
+    const months = getAllByTestId('flow-month');
+    expect(months[0].textContent).toContain('300,00');
+    expect(months[1].textContent).toContain('500,00');
+    expect(getByText('bolletta')).toBeTruthy();
+    expect(getByText('rimborso')).toBeTruthy();
+  });
+});

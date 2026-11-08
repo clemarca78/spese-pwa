@@ -88,3 +88,14 @@ button.link.danger { color: var(--neg); }
 .item .amount.static { padding: 8px 10px; text-align: right; font-variant-numeric: tabular-nums; }
 .month-amounts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
 .month-amounts input { width: 100%; }
+.flow { border-bottom: 1px solid var(--line); padding: 8px 0; }
+.flow summary { list-style: none; cursor: pointer; display: grid; gap: 6px; }
+.flow summary::-webkit-details-marker { display: none; }
+.flow-head { display: flex; justify-content: space-between; gap: 12px; text-transform: capitalize; font-variant-numeric: tabular-nums; }
+.flow-bars { display: grid; gap: 3px; }
+.flow-bars .bar { display: block; height: 8px; border-radius: 4px; }
+.flow-bars .in { background: var(--pos); }
+.flow-bars .out { background: var(--neg); }
+.flow-nums, .flow-total { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: .85rem; font-variant-numeric: tabular-nums; }
+.flow-total { margin-top: 10px; font-size: .95rem; }
+.flow .items { margin-top: 8px; }

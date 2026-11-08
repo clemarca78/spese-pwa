@@ -30,3 +30,7 @@ export function todayLocal(): Day {
   const p = (x: number) => String(x).padStart(2, '0');
   return `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}`;
 }
+
+const MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
+/** 'YYYY-MM' -> 'novembre 2026' */
+export const monthLabel = (m: string): string => `${MESI[Number(m.slice(5)) - 1]} ${m.slice(0, 4)}`;

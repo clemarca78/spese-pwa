@@ -1,7 +1,7 @@
 import { signal } from '@preact/signals';
 import { useState } from 'preact/hooks';
 import { available, latestBalance, residual } from '../domain/calc';
-import { addDays, endOfMonth, todayLocal } from '../domain/days';
+import { addDays, endOfMonth, monthLabel, todayLocal } from '../domain/days';
 import { buildItems } from '../domain/items';
 import { formatEuro, parseEuro } from '../domain/money';
 import type { AppData, Day, Item, Kind } from '../domain/types';
@@ -24,8 +24,6 @@ const shortDate = (d: string) => `${d.slice(8)}/${d.slice(5, 7)}`;
 export const editingOneOff = signal<string | null>(null);
 
 const plain = (c: number) => (c / 100).toFixed(2).replace('.', ',');
-const MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
-const monthLabel = (m: string) => `${MESI[Number(m.slice(5)) - 1]} ${m.slice(0, 4)}`;
 
 function BalanceForm({ label }: { label: string }) {
   const [v, setV] = useState('');
