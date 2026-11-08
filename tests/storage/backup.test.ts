@@ -60,6 +60,9 @@ describe('validazione robusta', () => {
     expect(() => parseRulesFile(withRule({ rrule: 'FREQ=MONTHLY;BYMONTHDAY=-1' }))).not.toThrow();
     expect(() => parseRulesFile(withRule({ autoDebit: 'si' as never }))).toThrow(ImportError);
     expect(() => parseRulesFile(withRule({ autoDebit: true }))).not.toThrow();
+    expect(() => parseRulesFile(withRule({ monthAmounts: { '2': 100 } }))).not.toThrow();
+    expect(() => parseRulesFile(withRule({ monthAmounts: { '13': 100 } }))).toThrow(ImportError);
+    expect(() => parseRulesFile(withRule({ monthAmounts: { '2': 1.5 } }))).toThrow(ImportError);
   });
   it('rifiuta una voce una tantum senza nome o tipo', () => {
     const d = emptyData();

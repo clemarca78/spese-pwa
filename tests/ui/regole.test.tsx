@@ -85,6 +85,26 @@ describe('Regole', () => {
     fireEvent.click(r.getByText('Salva regola'));
     expect(data.value.rules[0]).toMatchObject({ kind: 'income', autoDebit: true });
   });
+  it('importo diverso per mese: i mesi scelti ottengono ciascuno il proprio importo', () => {
+    const r = render(<Regole />);
+    fill(r, 'Luce', '155,61');
+    fireEvent.click(r.getByLabelText('Feb'));
+    fireEvent.click(r.getByLabelText('Apr'));
+    fireEvent.click(r.getByLabelText('Importo diverso per mese'));
+    fireEvent.input(r.getByLabelText('Importo di Feb'), { target: { value: '240,00' } });
+    fireEvent.input(r.getByLabelText('Importo di Apr'), { target: { value: '120,50' } });
+    fireEvent.click(r.getByText('Salva regola'));
+    expect(data.value.rules[0].monthAmounts).toEqual({ '2': 24000, '4': 12050 });
+    fireEvent.click(r.getByText('Modifica'));
+    expect((r.getByLabelText('Importo di Apr') as HTMLInputElement).value).toBe('120,50');
+  });
+  it('senza l opzione la regola non salva importi per mese', () => {
+    const r = render(<Regole />);
+    fill(r, 'Luce', '155,61');
+    fireEvent.click(r.getByLabelText('Feb'));
+    fireEvent.click(r.getByText('Salva regola'));
+    expect(data.value.rules[0].monthAmounts).toBeUndefined();
+  });
   it('elimina una regola e le sue correzioni solo dopo la conferma', () => {
     const d = emptyData();
     d.rules = [

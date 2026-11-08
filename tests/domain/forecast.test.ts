@@ -39,6 +39,15 @@ describe('forecast', () => {
     d.settings.varieDailyDefault = 1000;
     expect(forecast(d, 2).map((p) => p.balance)).toEqual([100000, 99000, 98000]);
   });
+  it('usa gli importi per mese delle regole', () => {
+    const d = base();
+    d.balances = [{ value: 100000, day: '2026-12-01' }];
+    d.rules = [{ id: 'l', name: 'Luce', kind: 'expense', amount: 15000, variable: true, rrule: 'FREQ=MONTHLY;BYMONTHDAY=26;BYMONTH=12,2', start: '2026-01-01', active: true, autoDebit: true, monthAmounts: { '12': 30000, '2': 9000 } }];
+    const pts = forecast(d, 90);
+    expect(pts.find((p) => p.day === '2026-12-25')?.balance).toBe(100000);
+    expect(pts.find((p) => p.day === '2026-12-26')?.balance).toBe(100000 - 30000);
+    expect(pts.find((p) => p.day === '2027-02-26')?.balance).toBe(100000 - 30000 - 9000);
+  });
   it('senza saldo non prevede nulla', () => {
     expect(forecast(emptyTestData(), 30)).toEqual([]);
   });

@@ -15,6 +15,8 @@ export interface Rule {
   active: boolean;
   /** Addebito (uscita) o accredito (entrata) automatico sul conto: alla data risulta già pagato/incassato. */
   autoDebit?: boolean;
+  /** Importo per mese ('1'-'12'), ad esempio per le bollette: ha la precedenza su `amount` e sulla media. */
+  monthAmounts?: Record<string, Cents>;
 }
 export interface Override {
   ruleId: string;

@@ -86,3 +86,5 @@ button.link.danger { color: var(--neg); }
 .filters .chip { padding: 8px 4px; }
 .auto-mark { text-align: center; color: var(--muted); font-size: 1.2rem; }
 .item .amount.static { padding: 8px 10px; text-align: right; font-variant-numeric: tabular-nums; }
+.month-amounts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+.month-amounts input { width: 100%; }

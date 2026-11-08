@@ -33,6 +33,8 @@ export function Regole() {
   const [amount, setAmount] = useState('');
   const [variable, setVariable] = useState(false);
   const [autoDebit, setAutoDebit] = useState(false);
+  const [perMonth, setPerMonth] = useState(false);
+  const [monthVals, setMonthVals] = useState<Record<number, string>>({});
   const [spec, setSpec] = useState<RecurrenceSpec>(EMPTY_SPEC);
   const [start, setStart] = useState(todayLocal());
   const [end, setEnd] = useState('');
@@ -49,13 +51,15 @@ export function Regole() {
   })();
 
   function reset() {
-    setEditingId(null); setName(''); setAmount(''); setVariable(false); setAutoDebit(false); setKind('expense');
+    setEditingId(null); setName(''); setAmount(''); setVariable(false); setAutoDebit(false); setPerMonth(false); setMonthVals({}); setKind('expense');
     setSpec(EMPTY_SPEC); setStart(todayLocal()); setEnd(''); setError(null); setView('list');
   }
 
   function edit(r: Rule) {
     setEditingId(r.id); setName(r.name); setKind(r.kind);
     setAmount((r.amount / 100).toFixed(2).replace('.', ',')); setVariable(r.variable); setAutoDebit(r.autoDebit ?? false);
+    setPerMonth(!!r.monthAmounts);
+    setMonthVals(Object.fromEntries(Object.entries(r.monthAmounts ?? {}).map(([m, c]) => [Number(m), (c / 100).toFixed(2).replace('.', ',')])));
     setSpec(parseRrule(r.rrule)); setStart(r.start); setEnd(r.end ?? ''); setError(null); setView('form');
   }
 
@@ -63,11 +67,21 @@ export function Regole() {
     const problem =
       specError ?? (!name.trim() ? 'Scrivi un nome.' : cents === null ? 'Importo non valido.' : null);
     if (problem) return setError(problem);
+    let monthAmounts: Record<string, number> | undefined;
+    if (perMonth && spec.months?.length) {
+      monthAmounts = {};
+      for (const m of spec.months) {
+        const c = parseEuro(monthVals[m] ?? amount);
+        if (c === null) return setError(`Importo non valido per ${MONTH_LABEL[m - 1]}.`);
+        monthAmounts[String(m)] = c;
+      }
+    }
     const rule: Rule = {
       id: editingId ?? crypto.randomUUID(),
       name: name.trim(), kind, amount: cents as number, variable,
       rrule: buildRrule(spec), start, ...(end ? { end } : {}), active: true,
       ...(autoDebit ? { autoDebit: true } : {}),
+      ...(monthAmounts ? { monthAmounts } : {}),
     };
     void mutate((d) => ({
       ...d,
@@ -99,7 +113,7 @@ export function Regole() {
             <span class="day">{r.kind === 'income' ? '+' : '−'}</span>
             <span class="name">
               {r.name}
-              <small> {formatEuro(r.amount)}{r.variable ? ' (variabile)' : ''}{r.autoDebit ? ` · ${r.kind === 'income' ? 'accredito' : 'addebito'} automatico` : ''}{nextDates(r, 1)[0] ? ` · prossima ${fmtDay(nextDates(r, 1)[0])}` : ''}</small>
+              <small> {r.monthAmounts ? 'importi per mese' : formatEuro(r.amount)}{r.variable ? ' (variabile)' : ''}{r.autoDebit ? ` · ${r.kind === 'income' ? 'accredito' : 'addebito'} automatico` : ''}{nextDates(r, 1)[0] ? ` · prossima ${fmtDay(nextDates(r, 1)[0])}` : ''}</small>
             </span>
             <span class="actions">
               <button class="link" onClick={() => edit(r)}>Modifica</button>
@@ -198,6 +212,20 @@ export function Regole() {
                     onChange={() => setSpec({ ...spec, months: toggle(spec.months, i + 1) })} /> {l}</label>
                 ))}
               </div>
+              <label class="check">
+                <input type="checkbox" aria-label="Importo diverso per mese" checked={perMonth && !!spec.months?.length} disabled={!spec.months?.length}
+                  onChange={(e) => setPerMonth(e.currentTarget.checked)} /> Importo diverso per mese <small class="muted">(scegli prima i mesi)</small>
+              </label>
+              {perMonth && spec.months?.length ? (
+                <div class="month-amounts">
+                  {[...spec.months].sort((a, b) => a - b).map((m) => (
+                    <label class="field" key={m}>{MONTH_LABEL[m - 1]}
+                      <input inputMode="decimal" aria-label={`Importo di ${MONTH_LABEL[m - 1]}`} placeholder={amount}
+                        value={monthVals[m] ?? amount} onInput={(e) => setMonthVals({ ...monthVals, [m]: e.currentTarget.value })} />
+                    </label>
+                  ))}
+                </div>
+              ) : null}
             </div>
           ) : null}
         </fieldset>

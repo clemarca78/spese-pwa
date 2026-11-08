@@ -49,6 +49,13 @@ function checkRule(r: unknown): Rule {
   if (o.end !== undefined) day(o.end, `regola ${name}`);
   if (typeof o.variable !== 'boolean' || typeof o.active !== 'boolean') fail('regola incompleta');
   if (o.autoDebit !== undefined && typeof o.autoDebit !== 'boolean') fail(`regola ${name}: addebito automatico non valido`);
+  if (o.monthAmounts !== undefined) {
+    const m = obj(o.monthAmounts, `regola ${name}: importi per mese`);
+    for (const [k, v] of Object.entries(m)) {
+      if (!/^([1-9]|1[0-2])$/.test(k)) fail(`regola ${name}: mese ${k} non valido`);
+      int(v, `regola ${name}`);
+    }
+  }
   checkRrule(o.rrule as string, name);
   return o as unknown as Rule;
 }

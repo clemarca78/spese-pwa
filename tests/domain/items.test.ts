@@ -80,3 +80,26 @@ describe('addebito automatico', () => {
     expect(buildItems(d, '2026-11-01', '2026-11-30', '2026-11-10').find((i) => i.ruleId === 'a')).toMatchObject({ paid: true, paidOn: '2026-11-08' });
   });
 });
+
+describe('importi per mese', () => {
+  const bolletta = () => mkRule({ id: 'r1', amount: 15000, variable: true, rrule: 'FREQ=MONTHLY;BYMONTHDAY=26;BYMONTH=2,4,6', monthAmounts: { '2': 24000, '4': 12000 } });
+  it('ogni mese usa il proprio importo, gli altri quello della regola', () => {
+    const d = emptyTestData();
+    d.rules = [bolletta()];
+    const items = buildItems(d, '2027-01-01', '2027-06-30');
+    expect(items.map((i) => [i.day, i.amount])).toEqual([['2027-02-26', 24000], ['2027-04-26', 12000], ['2027-06-26', 15000]]);
+    expect(items.every((i) => i.estimated)).toBe(true);
+  });
+  it('un importo corretto a mano per quella scadenza prevale', () => {
+    const d = emptyTestData();
+    d.rules = [bolletta()];
+    d.overrides = [ov('2027-02-26', 23337)];
+    expect(buildItems(d, '2027-02-01', '2027-02-28')[0]).toMatchObject({ amount: 23337, estimated: false });
+  });
+  it('la tabella dei mesi ha la precedenza sulla media degli importi reali', () => {
+    const d = emptyTestData();
+    d.rules = [bolletta()];
+    d.overrides = [ov('2026-10-26', 99999)];
+    expect(buildItems(d, '2027-02-01', '2027-02-28')[0].amount).toBe(24000);
+  });
+});
