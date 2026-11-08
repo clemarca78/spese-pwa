@@ -123,6 +123,78 @@ describe('Regole', () => {
     expect(data.value.overrides.map((o) => o.ruleId)).toEqual(['r2']);
     confirm.mockRestore();
   });
+  describe('gruppi personalizzati', () => {
+    const rule = (id: string, name: string, extra: object = {}) => ({
+      id, name, kind: 'expense' as const, amount: 1000, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=10', start: '2026-01-01', active: true, ...extra,
+    });
+    it('crea un gruppo e lo mostra anche vuoto', () => {
+      const r = render(<Regole />);
+      fireEvent.input(r.getByLabelText('Nome nuovo gruppo'), { target: { value: 'Bollette' } });
+      fireEvent.click(r.getByText('Aggiungi gruppo'));
+      expect(data.value.groups?.map((g) => g.name)).toEqual(['Bollette']);
+      expect(r.container.querySelector('details.group-rules > summary')?.textContent).toBe('Bollette · 0');
+    });
+    it('non crea gruppi con nome vuoto o doppio', () => {
+      const d = emptyData();
+      d.groups = [{ id: 'g1', name: 'Bollette' }];
+      data.value = d;
+      const r = render(<Regole />);
+      fireEvent.click(r.getByText('Aggiungi gruppo'));
+      fireEvent.input(r.getByLabelText('Nome nuovo gruppo'), { target: { value: ' bollette ' } });
+      fireEvent.click(r.getByText('Aggiungi gruppo'));
+      expect(data.value.groups).toHaveLength(1);
+      expect(r.getByRole('alert').textContent).toMatch(/esiste già/i);
+    });
+    it('una regola assegnata a un gruppo compare lì; le altre restano nei gruppi automatici', () => {
+      const d = emptyData();
+      d.groups = [{ id: 'g1', name: 'Bollette' }];
+      d.rules = [rule('1', 'Enel luce', { groupId: 'g1', autoDebit: true }), rule('2', 'Palestra')];
+      data.value = d;
+      const r = render(<Regole />);
+      const titles = Array.from(r.container.querySelectorAll('details.group-rules > summary')).map((e) => e.textContent);
+      expect(titles).toEqual(['Bollette · 1', 'Altre uscite · 1']);
+    });
+    it('il modulo assegna il gruppo e lo riapre', () => {
+      const d = emptyData();
+      d.groups = [{ id: 'g1', name: 'Bollette' }];
+      data.value = d;
+      const r = render(<Regole />);
+      fireEvent.click(r.getByText('Nuova regola'));
+      fireEvent.input(r.getByLabelText('Nome regola'), { target: { value: 'Gas' } });
+      fireEvent.input(r.getByLabelText('Importo regola'), { target: { value: '50' } });
+      fireEvent.change(r.getByLabelText('Gruppo'), { target: { value: 'g1' } });
+      fireEvent.click(r.getByText('Salva regola'));
+      expect(data.value.rules[0].groupId).toBe('g1');
+      fireEvent.click(r.getByText('Modifica'));
+      expect((r.getByLabelText('Gruppo') as HTMLSelectElement).value).toBe('g1');
+    });
+    it('rinomina un gruppo', () => {
+      const d = emptyData();
+      d.groups = [{ id: 'g1', name: 'Bollette' }];
+      data.value = d;
+      const r = render(<Regole />);
+      fireEvent.click(r.getByLabelText('Rinomina gruppo: Bollette'));
+      fireEvent.input(r.getByLabelText('Nuovo nome del gruppo'), { target: { value: 'Utenze' } });
+      fireEvent.click(r.getByText('Salva nome'));
+      expect(data.value.groups?.[0].name).toBe('Utenze');
+    });
+    it('elimina un gruppo solo dopo la conferma e le regole restano', () => {
+      const d = emptyData();
+      d.groups = [{ id: 'g1', name: 'Bollette' }];
+      d.rules = [rule('1', 'Enel luce', { groupId: 'g1' })];
+      data.value = d;
+      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+      const r = render(<Regole />);
+      fireEvent.click(r.getByLabelText('Elimina gruppo: Bollette'));
+      expect(data.value.groups).toHaveLength(1);
+      confirm.mockReturnValue(true);
+      fireEvent.click(r.getByLabelText('Elimina gruppo: Bollette'));
+      expect(data.value.groups).toEqual([]);
+      expect(data.value.rules).toHaveLength(1);
+      expect(data.value.rules[0].groupId).toBeUndefined();
+      confirm.mockRestore();
+    });
+  });
   describe('gruppi e ricerca', () => {
     const R = (id: string, name: string, extra: Partial<import('../../src/domain/types').Rule> = {}) => ({
       id, name, kind: 'expense' as const, amount: 1000, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=10', start: '2026-01-01', active: true, ...extra,

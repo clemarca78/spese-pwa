@@ -103,3 +103,15 @@ button.link.danger { color: var(--neg); }
 .group-rules { margin: 8px 0; border: 1px solid var(--line); border-radius: 12px; background: var(--card); padding: 0 12px; }
 .group-rules > summary { cursor: pointer; padding: 12px 0; font-weight: 600; }
 .group-rules[open] > summary { border-bottom: 1px solid var(--line); }
+.chart-line.tone-in { stroke: var(--pos); stroke-width: 1.5; }
+.chart-line.tone-out { stroke: var(--neg); stroke-width: 1.5; }
+.chart-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; font-size: .9rem; }
+.chart-legend label { display: inline-flex; align-items: center; gap: 6px; }
+.chart-legend input { min-height: 0; width: 18px; height: 18px; }
+.chart-legend .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.dot.s-saldo { background: var(--accent); } .dot.s-in { background: var(--pos); } .dot.s-out { background: var(--neg); }
+.manage-groups { margin: 16px 0; border: 1px solid var(--line); border-radius: 12px; background: var(--card); padding: 0 12px 12px; }
+.manage-groups > summary { cursor: pointer; padding: 12px 0; font-weight: 600; }
+.group-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.group-row input { flex: 1 1 140px; }
+.group-row .actions { display: flex; gap: 16px; }

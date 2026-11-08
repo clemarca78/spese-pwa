@@ -82,6 +82,29 @@ export function setItemAmount(item: Item, amount: Cents): Promise<void> {
   return mutate((d) => upsertOverride(d, item, { amount }));
 }
 
+const cleanName = (n: string) => n.trim();
+
+export function addGroup(name: string): Promise<void> {
+  return mutate((d) => ({ ...d, groups: [...(d.groups ?? []), { id: crypto.randomUUID(), name: cleanName(name) }] }));
+}
+
+export function renameGroup(id: string, name: string): Promise<void> {
+  return mutate((d) => ({ ...d, groups: (d.groups ?? []).map((g) => (g.id === id ? { ...g, name: cleanName(name) } : g)) }));
+}
+
+/** Le regole del gruppo restano, senza gruppo. */
+export function deleteGroup(id: string): Promise<void> {
+  return mutate((d) => ({
+    ...d,
+    groups: (d.groups ?? []).filter((g) => g.id !== id),
+    rules: d.rules.map((r) => {
+      if (r.groupId !== id) return r;
+      const { groupId: _drop, ...rest } = r;
+      return rest;
+    }),
+  }));
+}
+
 export function updateOneOff(id: string, patch: Partial<Omit<OneOff, 'id'>>): Promise<void> {
   return mutate((d) => ({ ...d, oneOffs: d.oneOffs.map((o) => (o.id === id ? dropUndefined({ ...o, ...patch }) : o)) }));
 }

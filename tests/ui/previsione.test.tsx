@@ -27,6 +27,15 @@ describe('Previsione', () => {
     fireEvent.click(getByText('12 mesi'));
     expect(count()).toBe('366');
   });
+  it('il grafico mostra saldo, entrate e uscite e si possono nascondere', () => {
+    const { container, getByLabelText } = render(<Previsione />);
+    const lines = () => container.querySelectorAll('[data-testid="series-path"]').length;
+    expect(lines()).toBe(3);
+    fireEvent.click(getByLabelText('Mostra uscite'));
+    expect(lines()).toBe(2);
+    fireEvent.click(getByLabelText('Mostra entrate'));
+    expect(lines()).toBe(1);
+  });
   it('l\'interruttore scrive settings.varieEnabled', () => {
     const { getByLabelText } = render(<Previsione />);
     fireEvent.click(getByLabelText('Spese varie stimate'));

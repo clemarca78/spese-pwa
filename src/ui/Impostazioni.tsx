@@ -47,8 +47,8 @@ export function Impostazioni() {
   async function importRules(file: File | undefined) {
     if (!file) return;
     try {
-      const { rules, varieDailyDefault } = parseRulesFile(await file.text());
-      await mutate((d) => mergeRules(d, rules, varieDailyDefault));
+      const { rules, varieDailyDefault, groups } = parseRulesFile(await file.text());
+      await mutate((d) => mergeRules(d, rules, varieDailyDefault, groups));
       setMessage({ ok: true, text: `${rules.length} regole importate.` });
     } catch (e) {
       setMessage({ ok: false, text: e instanceof ImportError ? e.message : 'Impossibile leggere il file.' });

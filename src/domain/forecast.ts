@@ -46,6 +46,31 @@ export function forecast(data: AppData, horizonDays: number): ForecastPoint[] {
   return points;
 }
 
+/** Entrate e uscite cumulate dall'ultimo saldo, giorno per giorno (le uscite includono le spese varie stimate). */
+export function cumulativeFlows(data: AppData, horizonDays: number): { income: ForecastPoint[]; expense: ForecastPoint[] } {
+  const bal = latestBalance(data);
+  if (!bal) return { income: [], expense: [] };
+  const inc = new Map<Day, Cents>();
+  const exp = new Map<Day, Cents>();
+  for (const { day, item } of plannedItems(data, horizonDays)) {
+    const m = item.kind === 'income' ? inc : exp;
+    m.set(day, (m.get(day) ?? 0) + item.amount);
+  }
+  const varie = data.settings.varieEnabled ? estimateDailyVarie(data) : 0;
+  const income: ForecastPoint[] = [{ day: bal.day, balance: 0 }];
+  const expense: ForecastPoint[] = [{ day: bal.day, balance: 0 }];
+  let i = 0;
+  let e = 0;
+  for (let n = 1; n <= horizonDays; n++) {
+    const day = addDays(bal.day, n);
+    i += inc.get(day) ?? 0;
+    e += (exp.get(day) ?? 0) + varie;
+    income.push({ day, balance: i });
+    expense.push({ day, balance: e });
+  }
+  return { income, expense };
+}
+
 export interface MonthFlow {
   /** 'YYYY-MM' */
   month: string;

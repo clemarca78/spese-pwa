@@ -4,7 +4,7 @@ import { formatEuro, parseEuro } from '../domain/money';
 import { expandRule } from '../domain/recurrence';
 import { buildRrule, parseRrule, validateSpec, type RecurrenceSpec } from '../domain/ruleBuilder';
 import type { Kind, Rule } from '../domain/types';
-import { data, deleteRule, mutate } from '../state/store';
+import { addGroup, data, deleteGroup, deleteRule, mutate, renameGroup } from '../state/store';
 
 const WD_LABEL = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 const MONTH_LABEL = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
@@ -46,6 +46,11 @@ export function Regole() {
   const [start, setStart] = useState(todayLocal());
   const [end, setEnd] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [groupId, setGroupId] = useState('');
+  const [newGroup, setNewGroup] = useState('');
+  const [groupError, setGroupError] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameText, setRenameText] = useState('');
 
   const cents = parseEuro(amount);
   const specError = validateSpec(spec);
@@ -58,13 +63,13 @@ export function Regole() {
   })();
 
   function reset() {
-    setEditingId(null); setName(''); setAmount(''); setVariable(false); setAutoDebit(false); setPerMonth(false); setMonthVals({}); setKind('expense');
+    setEditingId(null); setName(''); setAmount(''); setVariable(false); setAutoDebit(false); setPerMonth(false); setMonthVals({}); setKind('expense'); setGroupId('');
     setSpec(EMPTY_SPEC); setStart(todayLocal()); setEnd(''); setError(null); setView('list');
   }
 
   function edit(r: Rule) {
     setEditingId(r.id); setName(r.name); setKind(r.kind);
-    setAmount((r.amount / 100).toFixed(2).replace('.', ',')); setVariable(r.variable); setAutoDebit(r.autoDebit ?? false);
+    setAmount((r.amount / 100).toFixed(2).replace('.', ',')); setVariable(r.variable); setAutoDebit(r.autoDebit ?? false); setGroupId(r.groupId ?? '');
     setPerMonth(!!r.monthAmounts);
     setMonthVals(Object.fromEntries(Object.entries(r.monthAmounts ?? {}).map(([m, c]) => [Number(m), (c / 100).toFixed(2).replace('.', ',')])));
     setSpec(parseRrule(r.rrule)); setStart(r.start); setEnd(r.end ?? ''); setError(null); setView('form');
@@ -89,6 +94,7 @@ export function Regole() {
       rrule: buildRrule(spec), start, ...(end ? { end } : {}), active: true,
       ...(autoDebit ? { autoDebit: true } : {}),
       ...(monthAmounts ? { monthAmounts } : {}),
+      ...(groupId && groups.some((g) => g.id === groupId) ? { groupId } : {}),
     };
     void mutate((d) => ({
       ...d,
@@ -97,12 +103,40 @@ export function Regole() {
     reset();
   }
 
+  const groups = data.value.groups ?? [];
+  const nameTaken = (n: string, exceptId?: string) =>
+    groups.some((g) => g.id !== exceptId && g.name.trim().toLowerCase() === n.trim().toLowerCase());
+  function createGroup() {
+    const n = newGroup.trim();
+    if (!n) return setGroupError('Scrivi il nome del gruppo.');
+    if (nameTaken(n)) return setGroupError('Un gruppo con questo nome esiste già.');
+    setGroupError(null);
+    setNewGroup('');
+    void addGroup(n);
+  }
+  function saveRename(id: string) {
+    const n = renameText.trim();
+    if (!n) return setGroupError('Scrivi il nome del gruppo.');
+    if (nameTaken(n, id)) return setGroupError('Un gruppo con questo nome esiste già.');
+    setGroupError(null);
+    setRenamingId(null);
+    void renameGroup(id, n);
+  }
   const q = query.trim().toLowerCase();
   // attive prima, poi per nome
   const visible = [...data.value.rules]
     .filter((r) => !q || r.name.toLowerCase().includes(q))
     .sort((a, b) => Number(b.active) - Number(a.active) || a.name.localeCompare(b.name));
   const found = visible.length;
+  const known = new Set(groups.map((g) => g.id));
+  const sections = [
+    ...[...groups].sort((a, b) => a.name.localeCompare(b.name)).map((g) => ({
+      key: `g-${g.id}`, title: g.name, custom: true, rules: visible.filter((r) => r.groupId === g.id),
+    })),
+    ...GROUPS.map((g) => ({
+      key: g.key, title: g.title, custom: false, rules: visible.filter((r) => !(r.groupId && known.has(r.groupId)) && g.test(r)),
+    })),
+  ];
   const num = (v: string) => Math.trunc(Number(v));
   const weekdayPills = () =>
     WD_LABEL.map((l, i) => (
@@ -121,9 +155,9 @@ export function Regole() {
       ) : null}
       {data.value.rules.length === 0 ? <p class="empty">Nessuna regola ancora.</p> : null}
       {data.value.rules.length > 0 && found === 0 ? <p class="empty">Nessuna regola trovata.</p> : null}
-      {GROUPS.map((g) => {
-        const rules = visible.filter(g.test);
-        if (rules.length === 0) return null;
+      {sections.map((g) => {
+        if (g.rules.length === 0 && (q || !g.custom)) return null;
+        const rules = g.rules;
         return (
           <details class="group-rules" key={g.key} open={!!q || !!openGroups[g.key]}
             onToggle={(e) => { if (!q) setOpenGroups({ ...openGroups, [g.key]: e.currentTarget.open }); }}>
@@ -156,6 +190,41 @@ export function Regole() {
           </details>
         );
       })}
+      <details class="manage-groups">
+        <summary>Gestisci gruppi</summary>
+        <p class="muted">Crea i tuoi gruppi e assegna le regole dal modulo di ogni regola. Le regole senza gruppo restano in Entrate, Uscite con addebito automatico e Altre uscite.</p>
+        <div class="row">
+          <input aria-label="Nome nuovo gruppo" placeholder="Nome del gruppo" value={newGroup} onInput={(e) => setNewGroup(e.currentTarget.value)} />
+          <button onClick={createGroup}>Aggiungi gruppo</button>
+        </div>
+        {groupError ? <p role="alert" class="neg">{groupError}</p> : null}
+        <ul class="items">
+          {[...groups].sort((a, b) => a.name.localeCompare(b.name)).map((g) => (
+            <li class="group-row" key={g.id}>
+              {renamingId === g.id ? (
+                <>
+                  <input aria-label="Nuovo nome del gruppo" value={renameText} onInput={(e) => setRenameText(e.currentTarget.value)} />
+                  <button onClick={() => saveRename(g.id)}>Salva nome</button>
+                  <button class="link" onClick={() => { setRenamingId(null); setGroupError(null); }}>Annulla</button>
+                </>
+              ) : (
+                <>
+                  <span class="name">{g.name}</span>
+                  <span class="actions">
+                    <button class="link" aria-label={`Rinomina gruppo: ${g.name}`} onClick={() => { setRenamingId(g.id); setRenameText(g.name); setGroupError(null); }}>Rinomina</button>
+                    <button class="link danger" aria-label={`Elimina gruppo: ${g.name}`}
+                      onClick={() => {
+                        if (!window.confirm(`Eliminare il gruppo "${g.name}"? Le sue regole restano, senza gruppo.`)) return;
+                        void deleteGroup(g.id);
+                      }}>Elimina</button>
+                  </span>
+                </>
+              )}
+            </li>
+          ))}
+          {groups.length === 0 ? <li class="empty">Nessun gruppo ancora.</li> : null}
+        </ul>
+      </details>
     </main>
     );
   }
@@ -175,6 +244,14 @@ export function Regole() {
             <option value="income">Entrata</option>
           </select>
           <label class="check"><input type="checkbox" checked={variable} onChange={(e) => setVariable(e.currentTarget.checked)} /> Importo variabile (stima)</label>
+        </div>
+        <div class="row">
+          <label class="field">Gruppo
+            <select aria-label="Gruppo" value={groupId} onChange={(e) => setGroupId(e.currentTarget.value)}>
+              <option value="">Nessuno (gruppi automatici)</option>
+              {[...groups].sort((a, b) => a.name.localeCompare(b.name)).map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </select>
+          </label>
         </div>
         <div class="row">
           <label class="check"><input type="checkbox" aria-label={autoLabel(kind)} checked={autoDebit} onChange={(e) => setAutoDebit(e.currentTarget.checked)} /> {autoLabel(kind)} <small class="muted">({kind === 'income' ? 'alla data risulta già incassata' : 'alla scadenza risulta già pagata'})</small></label>

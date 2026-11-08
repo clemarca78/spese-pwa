@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { todayLocal } from '../../src/domain/days';
 import type { Item } from '../../src/domain/types';
-import { addBalance, addOneOff, data, deleteOneOff, deleteRule, initStore, mutate, setItemAmount, setPaid, setSkipped, updateOneOff } from '../../src/state/store';
+import { addBalance, addGroup, addOneOff, deleteGroup, renameGroup, data, deleteOneOff, deleteRule, initStore, mutate, setItemAmount, setPaid, setSkipped, updateOneOff } from '../../src/state/store';
 import { emptyData } from '../../src/storage/backup';
 import { openRepo } from '../../src/storage/repo';
 
@@ -79,6 +79,18 @@ describe('store', () => {
     expect(data.value.overrides).toEqual([{ ruleId: 'r1', day: '2026-11-24', skipped: true }]);
     await setSkipped(ruleItem, false);
     expect(data.value.overrides[0].skipped).toBe(false);
+  });
+  it('crea, rinomina ed elimina gruppi; eliminando un gruppo le sue regole restano senza gruppo', async () => {
+    await mutate((d) => ({ ...d, rules: [{ id: 'r1', name: 'Tim', kind: 'expense', amount: 1, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=8', start: '2026-01-01', active: true }] }));
+    await addGroup('Bollette');
+    const id = (data.value.groups ?? [])[0].id;
+    expect(data.value.groups).toEqual([{ id, name: 'Bollette' }]);
+    await mutate((d) => ({ ...d, rules: d.rules.map((r) => ({ ...r, groupId: id })) }));
+    await renameGroup(id, 'Utenze');
+    expect(data.value.groups?.[0].name).toBe('Utenze');
+    await deleteGroup(id);
+    expect(data.value.groups).toEqual([]);
+    expect('groupId' in data.value.rules[0]).toBe(false);
   });
   it('setItemAmount crea un override con importo reale', async () => {
     await setItemAmount(ruleItem, 12345);

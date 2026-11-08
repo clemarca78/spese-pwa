@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { biggestDrops, firstBelow, forecast, monthlyFlows } from '../../src/domain/forecast';
+import { biggestDrops, cumulativeFlows, firstBelow, forecast, monthlyFlows } from '../../src/domain/forecast';
 import type { OneOff } from '../../src/domain/types';
 import { emptyTestData } from './fixtures';
 
@@ -103,5 +103,26 @@ describe('monthlyFlows', () => {
   });
   it('senza saldo è vuoto', () => {
     expect(monthlyFlows(emptyTestData(), 30)).toEqual([]);
+  });
+});
+
+describe('cumulativeFlows', () => {
+  it('entrate e uscite cumulate giorno per giorno, coerenti con il saldo previsto', () => {
+    const d = base();
+    d.oneOffs = [
+      oo({ id: 'a', day: '2026-11-05', amount: 30000 }),
+      oo({ id: 'b', kind: 'income', day: '2026-11-07', amount: 80000 }),
+    ];
+    d.settings.varieEnabled = true;
+    d.settings.varieDailyDefault = 100;
+    const f = cumulativeFlows(d, 5);
+    const bal = forecast(d, 5);
+    expect(f.income.map((p) => p.balance)).toEqual([0, 0, 0, 0, 80000, 80000]);
+    expect(f.expense.map((p) => p.balance)).toEqual([0, 100, 30200, 30300, 30400, 30500]);
+    expect(f.income.map((p) => p.day)).toEqual(bal.map((p) => p.day));
+    bal.forEach((p, i) => expect(p.balance).toBe(100000 + f.income[i].balance - f.expense[i].balance));
+  });
+  it('senza saldo è vuoto', () => {
+    expect(cumulativeFlows(emptyTestData(), 10)).toEqual({ income: [], expense: [] });
   });
 });

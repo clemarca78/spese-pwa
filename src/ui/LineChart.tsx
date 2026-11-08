@@ -5,6 +5,8 @@ export interface Series {
   label: string;
   points: ForecastPoint[];
   dashed?: boolean;
+  /** Colore: verde per le entrate, rosso per le uscite. */
+  tone?: 'in' | 'out';
 }
 
 const W = 340;
@@ -38,7 +40,7 @@ export function LineChart({ series, threshold = 0 }: { series: Series[]; thresho
       <line data-testid="threshold" x1={PAD.l} x2={W - PAD.r} y1={ty} y2={ty} class="chart-zero" />
       {series.map((s, i) => (
         <path key={s.label} data-testid="series-path" d={path(s.points)} fill="none"
-          class={`chart-line s${i}`} stroke-dasharray={s.dashed ? '5 4' : undefined} />
+          class={`chart-line s${i}${s.tone ? ` tone-${s.tone}` : ''}`} stroke-dasharray={s.dashed ? '5 4' : undefined} />
       ))}
       {anyBelow
         ? series.map((s) => (

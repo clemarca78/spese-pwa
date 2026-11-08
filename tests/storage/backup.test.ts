@@ -95,6 +95,35 @@ describe('esporta regole', () => {
   });
 });
 
+describe('gruppi di regole', () => {
+  const withGroups = (extra: object) => JSON.stringify({ ...emptyData(), ...extra });
+  it('il backup accetta i gruppi e rifiuta quelli malformati', () => {
+    expect(() => parseImport(withGroups({ groups: [{ id: 'g1', name: 'Bollette' }], rules: [rule({ groupId: 'g1' })] }))).not.toThrow();
+    expect(() => parseImport(withGroups({ groups: [{ id: 'g1' }] }))).toThrow(ImportError);
+    expect(() => parseImport(withGroups({ groups: 'x' }))).toThrow(ImportError);
+    expect(() => parseImport(withGroups({ rules: [rule({ groupId: 5 as never })] }))).toThrow(ImportError);
+  });
+  it('esporta e reimporta le regole insieme ai loro gruppi', () => {
+    const d = emptyData();
+    d.groups = [{ id: 'g1', name: 'Bollette' }];
+    d.rules = [rule({ id: 'a', groupId: 'g1' })];
+    const text = exportRulesJson(d);
+    const parsed = parseRulesFile(text);
+    expect(parsed.groups).toEqual([{ id: 'g1', name: 'Bollette' }]);
+    const merged = mergeRules(emptyData(), parsed.rules, parsed.varieDailyDefault, parsed.groups);
+    expect(merged.groups).toEqual([{ id: 'g1', name: 'Bollette' }]);
+    expect(merged.rules[0].groupId).toBe('g1');
+  });
+  it('senza gruppi il file di regole non ha la chiave groups', () => {
+    const d = emptyData();
+    d.rules = [rule({ id: 'a' })];
+    expect(JSON.parse(exportRulesJson(d)).groups).toBeUndefined();
+  });
+  it('un file con gruppi malformati viene rifiutato', () => {
+    expect(() => parseRulesFile(JSON.stringify({ type: 'rules', schemaVersion: 1, rules: [rule()], groups: [{ name: 'x' }] }))).toThrow(ImportError);
+  });
+});
+
 describe('file regole', () => {
   const file = (o: object) => JSON.stringify({ type: 'rules', schemaVersion: 1, rules: [rule()], ...o });
   it('parse valido', () => {

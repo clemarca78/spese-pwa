@@ -1,5 +1,5 @@
 import { RRule } from 'rrule';
-import type { AppData, Cents, Rule, Settings } from '../domain/types';
+import type { AppData, Cents, Rule, RuleGroup, Settings } from '../domain/types';
 
 export class ImportError extends Error {}
 
@@ -48,6 +48,7 @@ function checkRule(r: unknown): Rule {
   day(o.start, `regola ${name}`);
   if (o.end !== undefined) day(o.end, `regola ${name}`);
   if (typeof o.variable !== 'boolean' || typeof o.active !== 'boolean') fail('regola incompleta');
+  if (o.groupId !== undefined && typeof o.groupId !== 'string') fail(`regola ${name}: gruppo non valido`);
   if (o.autoDebit !== undefined && typeof o.autoDebit !== 'boolean') fail(`regola ${name}: addebito automatico non valido`);
   if (o.monthAmounts !== undefined) {
     const m = obj(o.monthAmounts, `regola ${name}: importi per mese`);
@@ -72,6 +73,14 @@ function checkRrule(rrule: string, name: string) {
   if (md.some((d) => d > 28)) fail(`regola ${name}: i giorni 29-31 saltano i mesi corti, usa l'ultimo giorno (BYMONTHDAY=-1)`);
 }
 
+function checkGroups(v: unknown): RuleGroup[] {
+  return arr(v, 'gruppi').map((g) => {
+    const x = obj(g, 'gruppo');
+    if (typeof x.id !== 'string' || typeof x.name !== 'string' || !x.name.trim()) fail('gruppo non valido');
+    return { id: x.id, name: x.name };
+  });
+}
+
 function parseJson(text: string): Obj {
   let v: unknown;
   try {
@@ -91,6 +100,7 @@ export function parseImport(text: string): AppData {
   const o = parseJson(text);
   checkVersion(o);
   arr(o.rules, 'regole').forEach(checkRule);
+  if (o.groups !== undefined) checkGroups(o.groups);
   arr(o.overrides, 'override').forEach((v) => {
     const x = obj(v, 'override');
     if (typeof x.ruleId !== 'string') fail('override non valido');
@@ -124,27 +134,39 @@ export function parseImport(text: string): AppData {
   return o as unknown as AppData;
 }
 
-export function parseRulesFile(text: string): { rules: Rule[]; varieDailyDefault?: Cents } {
+export function parseRulesFile(text: string): { rules: Rule[]; varieDailyDefault?: Cents; groups?: RuleGroup[] } {
   const o = parseJson(text);
   if (o.type !== 'rules') fail('non è un file di regole');
   checkVersion(o);
   const rules = arr(o.rules, 'regole').map(checkRule);
-  if (o.varieDailyDefault === undefined) return { rules };
-  int(o.varieDailyDefault, 'spese varie');
-  return { rules, varieDailyDefault: o.varieDailyDefault as number };
+  const groups = o.groups === undefined ? undefined : checkGroups(o.groups);
+  if (o.varieDailyDefault !== undefined) int(o.varieDailyDefault, 'spese varie');
+  return {
+    rules,
+    ...(o.varieDailyDefault !== undefined ? { varieDailyDefault: o.varieDailyDefault as number } : {}),
+    ...(groups ? { groups } : {}),
+  };
 }
 
 /** Solo le regole e le spese varie: si reimporta con "Importa regole" su un altro telefono o dopo un reset. */
 export function exportRulesJson(d: AppData): string {
-  return JSON.stringify({ type: 'rules', schemaVersion: 1, rules: d.rules, varieDailyDefault: d.settings.varieDailyDefault }, null, 2);
+  const groups = d.groups ?? [];
+  return JSON.stringify(
+    { type: 'rules', schemaVersion: 1, rules: d.rules, varieDailyDefault: d.settings.varieDailyDefault, ...(groups.length ? { groups } : {}) },
+    null,
+    2,
+  );
 }
 
-export function mergeRules(d: AppData, rules: Rule[], varieDailyDefault?: Cents): AppData {
+export function mergeRules(d: AppData, rules: Rule[], varieDailyDefault?: Cents, groups?: RuleGroup[]): AppData {
   const byId = new Map(d.rules.map((r) => [r.id, r]));
   for (const r of rules) byId.set(r.id, r);
+  const groupsById = new Map((d.groups ?? []).map((g) => [g.id, g]));
+  for (const g of groups ?? []) groupsById.set(g.id, g);
   return {
     ...d,
     rules: [...byId.values()],
+    ...(groupsById.size ? { groups: [...groupsById.values()] } : {}),
     settings: varieDailyDefault !== undefined ? { ...d.settings, varieDailyDefault } : d.settings,
   };
 }

@@ -1,13 +1,15 @@
 import { signal } from '@preact/signals';
 import { latestBalance } from '../domain/calc';
 import { monthLabel } from '../domain/days';
-import { biggestDrops, firstBelow, forecast, monthlyFlows } from '../domain/forecast';
+import { biggestDrops, cumulativeFlows, firstBelow, forecast, monthlyFlows } from '../domain/forecast';
 import { formatEuro } from '../domain/money';
 import { data, mutate } from '../state/store';
 import { LineChart } from './LineChart';
 
 const HORIZONS: Array<[string, number]> = [['1 mese', 30], ['3 mesi', 90], ['6 mesi', 180], ['12 mesi', 365]];
 export const horizonDays = signal(90);
+const showIncome = signal(true);
+const showExpense = signal(true);
 const fmtDay = (d: string) => d.split('-').reverse().join('/');
 
 export function Previsione() {
@@ -25,6 +27,7 @@ export function Previsione() {
   const below = firstBelow(points, 0);
   const drops = biggestDrops(points, 3);
   const flows = monthlyFlows(d, horizonDays.value);
+  const cum = cumulativeFlows(d, horizonDays.value);
   const maxFlow = Math.max(1, ...flows.flatMap((m) => [m.income, m.expense + m.varie]));
   const total = flows.reduce((t, m) => ({ income: t.income + m.income, expense: t.expense + m.expense + m.varie }), { income: 0, expense: 0 });
 
@@ -39,7 +42,18 @@ export function Previsione() {
         ))}
       </div>
       <section class="card">
-        <LineChart series={[{ label: 'Saldo previsto', points }]} />
+        <LineChart
+          series={[
+            { label: 'Saldo previsto', points },
+            ...(showIncome.value ? [{ label: 'Entrate cumulate', points: cum.income, tone: 'in' as const }] : []),
+            ...(showExpense.value ? [{ label: 'Uscite cumulate', points: cum.expense, tone: 'out' as const }] : []),
+          ]}
+        />
+        <div class="chart-legend">
+          <span><span class="dot s-saldo" /> Saldo</span>
+          <label><input type="checkbox" aria-label="Mostra entrate" checked={showIncome.value} onChange={(e) => (showIncome.value = e.currentTarget.checked)} /><span class="dot s-in" /> Entrate cumulate</label>
+          <label><input type="checkbox" aria-label="Mostra uscite" checked={showExpense.value} onChange={(e) => (showExpense.value = e.currentTarget.checked)} /><span class="dot s-out" /> Uscite cumulate</label>
+        </div>
         <label class="switch">
           <input type="checkbox" checked={d.settings.varieEnabled}
             onChange={(e) => {

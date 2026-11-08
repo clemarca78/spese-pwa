@@ -21,6 +21,13 @@ describe('LineChart', () => {
     const fine = render(<LineChart series={[{ label: 'Base', points: pts([100, 50, 80]) }]} />);
     expect(fine.container.querySelector('[data-testid="below-zero"]')).toBeNull();
   });
+  it('una serie con tono usa il colore delle entrate o delle uscite', () => {
+    const { container } = render(
+      <LineChart series={[{ label: 'Saldo', points: pts([1, 2]) }, { label: 'Entrate', points: pts([0, 5]), tone: 'in' }, { label: 'Uscite', points: pts([0, 3]), tone: 'out' }]} />,
+    );
+    expect(container.querySelector('path.tone-in')).not.toBeNull();
+    expect(container.querySelector('path.tone-out')).not.toBeNull();
+  });
   it('espone il numero di punti', () => {
     const { container } = render(<LineChart series={[{ label: 'Base', points: pts([1, 2, 3, 4]) }]} />);
     expect(container.querySelector('svg')?.getAttribute('data-count')).toBe('4');

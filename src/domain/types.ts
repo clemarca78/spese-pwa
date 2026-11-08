@@ -17,6 +17,12 @@ export interface Rule {
   autoDebit?: boolean;
   /** Importo per mese ('1'-'12'), ad esempio per le bollette: ha la precedenza su `amount` e sulla media. */
   monthAmounts?: Record<string, Cents>;
+  /** Gruppo scelto dall'utente (vedi AppData.groups). Senza gruppo, la regola va nei gruppi automatici. */
+  groupId?: string;
+}
+export interface RuleGroup {
+  id: string;
+  name: string;
 }
 export interface Override {
   ruleId: string;
@@ -57,6 +63,7 @@ export interface AppData {
   schemaVersion: 1;
   updatedAt: string;
   rules: Rule[];
+  groups?: RuleGroup[];
   overrides: Override[];
   oneOffs: OneOff[];
   balances: Balance[];
