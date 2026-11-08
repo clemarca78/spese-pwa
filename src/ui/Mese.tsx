@@ -51,6 +51,8 @@ function ItemRow({ item, arretrato }: { item: Item; arretrato?: boolean }) {
     <li class={`item dated ${arretrato ? 'late' : ''} ${item.kind} ${item.paid ? 'done' : ''} ${item.skipped ? 'skipped' : ''}`}>
       {item.autoDebit ? (
         <span class="auto-mark" aria-hidden="true">↻</span>
+      ) : item.oneOffId && item.paid ? (
+        <span class="auto-mark" role="img" aria-label={item.kind === 'income' ? 'Incassata' : 'Pagata'}>✓</span>
       ) : (
         <input
           type="checkbox"
@@ -110,12 +112,6 @@ function arretrati(d: AppData, monthStart: Day): Item[] {
   return buildItems(d, starts[0], addDays(monthStart, -1)).filter((i) => i.kind === 'expense' && !i.paid && !i.skipped);
 }
 
-/** Una spesa già pagata con data prima del saldo è già nel saldo: niente istante, vale la data. */
-function stampFor(day: Day) {
-  const bal = latestBalance(data.value);
-  return !bal || day >= bal.day ? paidStamp() : {};
-}
-
 function AddOneOff() {
   const editing = data.value.oneOffs.find((o) => o.id === editingOneOff.value);
   const [name, setName] = useState(editing?.name ?? '');
@@ -131,12 +127,12 @@ function AddOneOff() {
         e.preventDefault();
         if (!name.trim() || cents === null) return;
         if (editing) {
-          const stamp = paid === editing.paid ? {} : paid ? stampFor(day) : { paidOn: undefined, paidAt: undefined };
+          const stamp = paid === editing.paid ? {} : paid ? paidStamp() : { paidOn: undefined, paidAt: undefined };
           void updateOneOff(editing.id, { name: name.trim(), kind, amount: cents, day, paid, ...stamp });
           editingOneOff.value = null;
           return;
         }
-        void addOneOff({ name: name.trim(), kind, amount: cents, day, paid, ...(paid ? stampFor(day) : {}) }).then(() => {
+        void addOneOff({ name: name.trim(), kind, amount: cents, day, paid, ...(paid ? paidStamp() : {}) }).then(() => {
           setAlreadyPaid(false);
           setName('');
           setAmount('');

@@ -196,6 +196,18 @@ describe('Mese', () => {
     expect(queryByText('Palestra')).toBeTruthy(); // non automatica: resta finché non la spunti
     expect(tid(container, 'residuo')).toContain('1.675,91'); // 1.500,00 - 27,89 + 203,80
   });
+  it('una spesa aggiunta come Già pagata scala sempre dal conto, anche con data prima del saldo, e non ha la casella', () => {
+    withBalance(); // saldo 1.500,00 al 03/11
+    const { getByLabelText, getByText, container, queryByLabelText } = render(<Mese />);
+    fireEvent.input(getByLabelText('Nome voce'), { target: { value: 'farmacia' } });
+    fireEvent.input(getByLabelText('Importo voce'), { target: { value: '12,00' } });
+    fireEvent.input(getByLabelText('Data voce'), { target: { value: '2026-11-01' } });
+    fireEvent.click(getByLabelText('Già pagata'));
+    fireEvent.click(getByText('Aggiungi'));
+    expect(tid(container, 'residuo')).toContain('1.488,00');
+    expect(queryByLabelText('Pagata: farmacia')).toBeNull();
+    expect(queryByLabelText('Pagata: bolletta')).toBeTruthy(); // la voce non pagata ha ancora la casella
+  });
   it('"Già pagata" crea la voce già spuntata e il residuo scala comunque', () => {
     withBalance();
     const { getByLabelText, getByText, container } = render(<Mese />);
@@ -257,7 +269,7 @@ describe('Mese', () => {
   });
   it('per le entrate la casella si chiama "Già incassata" e aumenta il residuo', () => {
     withBalance();
-    const { getByLabelText, getByText, container } = render(<Mese />);
+    const { getByLabelText, queryByLabelText, getByText, container } = render(<Mese />);
     fireEvent.change(getByLabelText('Tipo voce'), { target: { value: 'income' } });
     expect(getByLabelText('Già incassata')).toBeTruthy();
     fireEvent.input(getByLabelText('Nome voce'), { target: { value: 'rimborso' } });
@@ -266,7 +278,8 @@ describe('Mese', () => {
     fireEvent.click(getByLabelText('Già incassata'));
     fireEvent.click(getByText('Aggiungi'));
     expect(text(container)).toContain('1.600,00'); // 1.500,00 + 100,00 già incassati
-    expect(getByLabelText('Incassata: rimborso')).toBeTruthy();
+    expect(queryByLabelText('Incassata: rimborso')).toBeNull(); // già incassata: niente casella
+    expect(getByLabelText('Incassata')).toBeTruthy(); // solo il segno ✓
   });
   it('modifica una voce aggiunta a mano', () => {
     withBalance();
