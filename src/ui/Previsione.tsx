@@ -34,7 +34,7 @@ export function Previsione() {
   return (
     <main class="screen">
       <h2>Previsione</h2>
-      <div class="row chips" role="group" aria-label="Orizzonte">
+      <div class="row horizons" role="group" aria-label="Orizzonte">
         {HORIZONS.map(([label, days]) => (
           <button key={label} class={horizonDays.value === days ? 'chip active' : 'chip'} onClick={() => (horizonDays.value = days)}>
             {label}
@@ -49,19 +49,38 @@ export function Previsione() {
             ...(showExpense.value ? [{ label: 'Uscite cumulate', points: cum.expense, tone: 'out' as const }] : []),
           ]}
         />
-        <div class="chart-legend">
-          <span><span class="dot s-saldo" /> Saldo</span>
-          <label><input type="checkbox" aria-label="Mostra entrate" checked={showIncome.value} onChange={(e) => (showIncome.value = e.currentTarget.checked)} /><span class="dot s-in" /> Entrate cumulate</label>
-          <label><input type="checkbox" aria-label="Mostra uscite" checked={showExpense.value} onChange={(e) => (showExpense.value = e.currentTarget.checked)} /><span class="dot s-out" /> Uscite cumulate</label>
+        <div class="legend" role="group" aria-label="Linee del grafico">
+          <span class="legend-item fixed"><span class="dot s-saldo" /> Saldo previsto</span>
+          <label class="legend-item">
+            <input type="checkbox" aria-label="Mostra entrate" checked={showIncome.value} onChange={(e) => (showIncome.value = e.currentTarget.checked)} />
+            <span class="dot s-in" /> Entrate cumulate
+          </label>
+          <label class="legend-item">
+            <input type="checkbox" aria-label="Mostra uscite" checked={showExpense.value} onChange={(e) => (showExpense.value = e.currentTarget.checked)} />
+            <span class="dot s-out" /> Uscite cumulate
+          </label>
         </div>
-        <label class="switch">
-          <input type="checkbox" checked={d.settings.varieEnabled}
+        <label class="check varie">
+          <input type="checkbox" aria-label="Spese varie stimate" checked={d.settings.varieEnabled}
             onChange={(e) => {
               const varieEnabled = e.currentTarget.checked;
               void mutate((x) => ({ ...x, settings: { ...x.settings, varieEnabled } }));
-            }} />{' '}
+            }} />
           Spese varie stimate
         </label>
+        <p class="muted varie-hint">Aggiunge ogni giorno una spesa media, calcolata dai tuoi ultimi saldi, per quello che non registri (contanti, piccole spese).</p>
+        <details class="guide">
+          <summary>Come leggere il grafico</summary>
+          <ul>
+            <li><strong>Linea blu: saldo previsto.</strong> Parte dall&apos;ultimo saldo che hai inserito (data a sinistra) e arriva alla fine dell&apos;orizzonte (data a destra). Scende quando c&apos;è un&apos;uscita e sale quando arriva un&apos;entrata.</li>
+            <li><strong>Linea orizzontale sottile: lo zero.</strong> Quando il saldo è sotto zero sei in negativo: quel tratto diventa rosso e in alto compare l&apos;avviso con il primo giorno critico.</li>
+            <li><strong>Linea verde: entrate cumulate.</strong> Quanto è entrato in totale dal giorno del saldo. Sale a gradini nei giorni di accredito.</li>
+            <li><strong>Linea rossa: uscite cumulate.</strong> Quanto è uscito in totale dal giorno del saldo, comprese le spese varie se le attivi. Sale a gradini nei giorni di addebito.</li>
+            <li><strong>Come tornano i conti:</strong> saldo = saldo di partenza + entrate cumulate − uscite cumulate.</li>
+            <li><strong>I due numeri a destra</strong> sono il valore più alto e più basso che il grafico mostra. Con le linee cumulate la scala può allargarsi: nascondile con le pillole sopra se vuoi vedere meglio il saldo.</li>
+            <li><strong>Sotto il grafico</strong> trovi mese per mese entrate, uscite e differenza (tocca un mese per vedere le voci) e i tre giorni critici, cioè quelli con il calo maggiore.</li>
+          </ul>
+        </details>
       </section>
       {below ? (
         <p class="banner">Il saldo scende sotto zero il {fmtDay(below.day)} ({formatEuro(below.balance)}).</p>

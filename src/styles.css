@@ -115,3 +115,23 @@ button.link.danger { color: var(--neg); }
 .group-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
 .group-row input { flex: 1 1 140px; }
 .group-row .actions { display: flex; gap: 16px; }
+.group-tools { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.group-tools .actions { display: flex; gap: 16px; }
+.group-tools .banner p { margin: 0 0 8px; }
+button.danger-btn { background: var(--neg); }
+.item .actions .move { min-height: 36px; padding: 4px 8px; font-size: .85rem; max-width: 100%; }
+.new-group { margin-top: 16px; }
+.horizons { gap: 6px; }
+.horizons > * { flex: 1 1 0; min-width: 0; padding: 8px 4px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 8px; }
+.legend-item { position: relative; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 4px 12px; border: 1px solid var(--line); border-radius: 999px; font-size: .9rem; background: var(--card); }
+.legend-item input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+label.legend-item:not(:has(input:checked)) { opacity: .45; }
+label.legend-item:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.check.varie { margin-top: 8px; }
+.varie-hint { margin: 2px 0 8px; font-size: .85rem; }
+.guide { margin-top: 8px; border-top: 1px solid var(--line); padding-top: 8px; }
+.guide > summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
+.guide ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 8px; font-size: .9rem; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: 0 0 10px; }
+.item .actions { flex-wrap: wrap; align-items: center; row-gap: 6px; }

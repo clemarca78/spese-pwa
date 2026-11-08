@@ -48,6 +48,7 @@ export function LineChart({ series, threshold = 0 }: { series: Series[]; thresho
               class="chart-below" clip-path="url(#below-clip)" />
           ))
         : null}
+      <text x={PAD.l} y={Math.max(PAD.t + 8, ty - 3)} class="chart-label">0</text>
       <text x={PAD.l} y={H - 6} class="chart-label">{first ? fmtDay(first.day) : ''}</text>
       <text x={W - PAD.r} y={H - 6} text-anchor="end" class="chart-label">{last ? fmtDay(last.day) : ''}</text>
       {all.length ? <text x={W - PAD.r} y={PAD.t - 2} text-anchor="end" class="chart-label">{compact(hi)}</text> : null}

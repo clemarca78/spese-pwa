@@ -178,21 +178,61 @@ describe('Regole', () => {
       fireEvent.click(r.getByText('Salva nome'));
       expect(data.value.groups?.[0].name).toBe('Utenze');
     });
-    it('elimina un gruppo solo dopo la conferma e le regole restano', () => {
+    function withGroup() {
       const d = emptyData();
       d.groups = [{ id: 'g1', name: 'Bollette' }];
-      d.rules = [rule('1', 'Enel luce', { groupId: 'g1' })];
+      d.rules = [rule('1', 'Enel luce', { groupId: 'g1' }), rule('2', 'Gas', { groupId: 'g1' })];
+      d.overrides = [{ ruleId: '1', day: '2026-11-10', paid: true }];
       data.value = d;
-      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    }
+    it('eliminando un gruppo con regole chiede cosa farne: tenerle le mette senza gruppo', () => {
+      withGroup();
       const r = render(<Regole />);
       fireEvent.click(r.getByLabelText('Elimina gruppo: Bollette'));
-      expect(data.value.groups).toHaveLength(1);
-      confirm.mockReturnValue(true);
-      fireEvent.click(r.getByLabelText('Elimina gruppo: Bollette'));
+      expect(data.value.groups).toHaveLength(1); // nulla finché non scegli
+      expect(r.getByText(/contiene 2 regole/i)).toBeTruthy();
+      fireEvent.click(r.getByText('Tieni le regole'));
       expect(data.value.groups).toEqual([]);
-      expect(data.value.rules).toHaveLength(1);
+      expect(data.value.rules).toHaveLength(2);
+      expect(data.value.rules.every((x) => x.groupId === undefined)).toBe(true);
+    });
+    it('eliminando un gruppo si possono eliminare anche le sue regole', () => {
+      withGroup();
+      const r = render(<Regole />);
+      fireEvent.click(r.getByLabelText('Elimina gruppo: Bollette'));
+      fireEvent.click(r.getByText('Elimina anche le regole'));
+      expect(data.value.groups).toEqual([]);
+      expect(data.value.rules).toEqual([]);
+      expect(data.value.overrides).toEqual([]);
+    });
+    it('Annulla non cambia nulla', () => {
+      withGroup();
+      const r = render(<Regole />);
+      fireEvent.click(r.getByLabelText('Elimina gruppo: Bollette'));
+      fireEvent.click(r.getByText('Annulla'));
+      expect(data.value.groups).toHaveLength(1);
+      expect(data.value.rules).toHaveLength(2);
+      expect(r.queryByText('Tieni le regole')).toBeNull();
+    });
+    it('un gruppo vuoto si elimina con una sola conferma', () => {
+      const d = emptyData();
+      d.groups = [{ id: 'g1', name: 'Vuoto' }];
+      data.value = d;
+      const r = render(<Regole />);
+      fireEvent.click(r.getByLabelText('Elimina gruppo: Vuoto'));
+      fireEvent.click(r.getByText('Conferma eliminazione'));
+      expect(data.value.groups).toEqual([]);
+    });
+    it('sposta una regola da un gruppo all altro dall elenco', () => {
+      const d = emptyData();
+      d.groups = [{ id: 'g1', name: 'Bollette' }, { id: 'g2', name: 'Casa' }];
+      d.rules = [rule('1', 'Enel luce', { groupId: 'g1' })];
+      data.value = d;
+      const r = render(<Regole />);
+      fireEvent.change(r.getByLabelText('Gruppo di Enel luce'), { target: { value: 'g2' } });
+      expect(data.value.rules[0].groupId).toBe('g2');
+      fireEvent.change(r.getByLabelText('Gruppo di Enel luce'), { target: { value: '' } });
       expect(data.value.rules[0].groupId).toBeUndefined();
-      confirm.mockRestore();
     });
   });
   describe('gruppi e ricerca', () => {

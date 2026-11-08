@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { todayLocal } from '../../src/domain/days';
 import type { Item } from '../../src/domain/types';
-import { addBalance, addGroup, addOneOff, deleteGroup, renameGroup, data, deleteOneOff, deleteRule, initStore, mutate, setItemAmount, setPaid, setSkipped, updateOneOff } from '../../src/state/store';
+import { addBalance, addGroup, addOneOff, deleteGroup, moveRuleToGroup, renameGroup, data, deleteOneOff, deleteRule, initStore, mutate, setItemAmount, setPaid, setSkipped, updateOneOff } from '../../src/state/store';
 import { emptyData } from '../../src/storage/backup';
 import { openRepo } from '../../src/storage/repo';
 
@@ -90,6 +90,26 @@ describe('store', () => {
     expect(data.value.groups?.[0].name).toBe('Utenze');
     await deleteGroup(id);
     expect(data.value.groups).toEqual([]);
+    expect('groupId' in data.value.rules[0]).toBe(false);
+  });
+  it('eliminando un gruppo senza tenere le regole, spariscono anche le regole e le loro correzioni', async () => {
+    const rule = (id: string, groupId?: string) => ({ id, name: id, kind: 'expense' as const, amount: 1, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=8', start: '2026-01-01', active: true, ...(groupId ? { groupId } : {}) });
+    await mutate((d) => ({
+      ...d,
+      groups: [{ id: 'g1', name: 'A' }, { id: 'g2', name: 'B' }],
+      rules: [rule('r1', 'g1'), rule('r2', 'g2'), rule('r3')],
+      overrides: [{ ruleId: 'r1', day: '2026-11-08', paid: true }, { ruleId: 'r2', day: '2026-11-08', paid: true }],
+    }));
+    await deleteGroup('g1', false);
+    expect(data.value.groups?.map((g) => g.id)).toEqual(['g2']);
+    expect(data.value.rules.map((r) => r.id)).toEqual(['r2', 'r3']);
+    expect(data.value.overrides.map((o) => o.ruleId)).toEqual(['r2']);
+  });
+  it('sposta una regola da un gruppo a un altro o la toglie dal gruppo', async () => {
+    await mutate((d) => ({ ...d, groups: [{ id: 'g1', name: 'A' }, { id: 'g2', name: 'B' }], rules: [{ id: 'r1', name: 'x', kind: 'expense', amount: 1, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=8', start: '2026-01-01', active: true, groupId: 'g1' }] }));
+    await moveRuleToGroup('r1', 'g2');
+    expect(data.value.rules[0].groupId).toBe('g2');
+    await moveRuleToGroup('r1', undefined);
     expect('groupId' in data.value.rules[0]).toBe(false);
   });
   it('setItemAmount crea un override con importo reale', async () => {

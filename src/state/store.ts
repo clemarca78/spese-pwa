@@ -92,15 +92,33 @@ export function renameGroup(id: string, name: string): Promise<void> {
   return mutate((d) => ({ ...d, groups: (d.groups ?? []).map((g) => (g.id === id ? { ...g, name: cleanName(name) } : g)) }));
 }
 
-/** Le regole del gruppo restano, senza gruppo. */
-export function deleteGroup(id: string): Promise<void> {
+/** Elimina il gruppo. Con `keepRules` le sue regole restano, senza gruppo; altrimenti spariscono con le loro correzioni. */
+export function deleteGroup(id: string, keepRules = true): Promise<void> {
+  return mutate((d) => {
+    const doomed = new Set(keepRules ? [] : d.rules.filter((r) => r.groupId === id).map((r) => r.id));
+    return {
+      ...d,
+      groups: (d.groups ?? []).filter((g) => g.id !== id),
+      rules: d.rules
+        .filter((r) => !doomed.has(r.id))
+        .map((r) => {
+          if (r.groupId !== id) return r;
+          const { groupId: _drop, ...rest } = r;
+          return rest;
+        }),
+      overrides: d.overrides.filter((o) => !doomed.has(o.ruleId)),
+    };
+  });
+}
+
+/** Sposta una regola in un altro gruppo; senza `groupId` la toglie dal gruppo. */
+export function moveRuleToGroup(ruleId: string, groupId: string | undefined): Promise<void> {
   return mutate((d) => ({
     ...d,
-    groups: (d.groups ?? []).filter((g) => g.id !== id),
     rules: d.rules.map((r) => {
-      if (r.groupId !== id) return r;
+      if (r.id !== ruleId) return r;
       const { groupId: _drop, ...rest } = r;
-      return rest;
+      return groupId ? { ...rest, groupId } : rest;
     }),
   }));
 }

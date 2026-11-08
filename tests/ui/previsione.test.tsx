@@ -77,3 +77,20 @@ describe('Previsione: entrate e uscite per mese', () => {
     expect(getByText('rimborso')).toBeTruthy();
   });
 });
+
+describe('Previsione: guida alla lettura', () => {
+  it('c è una guida che spiega le linee del grafico', () => {
+    const { getByText, container } = render(<Previsione />);
+    expect(getByText('Come leggere il grafico')).toBeTruthy();
+    const guide = container.querySelector('details.guide');
+    expect(guide?.textContent).toMatch(/saldo previsto/i);
+    expect(guide?.textContent).toMatch(/entrate cumulate/i);
+    expect(guide?.textContent).toMatch(/uscite cumulate/i);
+    expect(guide?.textContent).toMatch(/sotto zero/i);
+  });
+  it('le spese varie sono un interruttore con spiegazione', () => {
+    const { getByLabelText, container } = render(<Previsione />);
+    expect(getByLabelText('Spese varie stimate')).toBeTruthy();
+    expect(container.querySelector('.varie-hint')).not.toBeNull();
+  });
+});

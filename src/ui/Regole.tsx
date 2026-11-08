@@ -4,7 +4,7 @@ import { formatEuro, parseEuro } from '../domain/money';
 import { expandRule } from '../domain/recurrence';
 import { buildRrule, parseRrule, validateSpec, type RecurrenceSpec } from '../domain/ruleBuilder';
 import type { Kind, Rule } from '../domain/types';
-import { addGroup, data, deleteGroup, deleteRule, mutate, renameGroup } from '../state/store';
+import { addGroup, data, deleteGroup, deleteRule, moveRuleToGroup, mutate, renameGroup } from '../state/store';
 
 const WD_LABEL = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 const MONTH_LABEL = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
@@ -51,6 +51,7 @@ export function Regole() {
   const [groupError, setGroupError] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameText, setRenameText] = useState('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const cents = parseEuro(amount);
   const specError = validateSpec(spec);
@@ -129,12 +130,13 @@ export function Regole() {
     .sort((a, b) => Number(b.active) - Number(a.active) || a.name.localeCompare(b.name));
   const found = visible.length;
   const known = new Set(groups.map((g) => g.id));
+  const allCount = (id: string) => data.value.rules.filter((r) => r.groupId === id).length;
   const sections = [
     ...[...groups].sort((a, b) => a.name.localeCompare(b.name)).map((g) => ({
-      key: `g-${g.id}`, title: g.name, custom: true, rules: visible.filter((r) => r.groupId === g.id),
+      key: `g-${g.id}`, groupId: g.id as string | undefined, title: g.name, custom: true, rules: visible.filter((r) => r.groupId === g.id),
     })),
     ...GROUPS.map((g) => ({
-      key: g.key, title: g.title, custom: false, rules: visible.filter((r) => !(r.groupId && known.has(r.groupId)) && g.test(r)),
+      key: g.key, groupId: undefined as string | undefined, title: g.title, custom: false, rules: visible.filter((r) => !(r.groupId && known.has(r.groupId)) && g.test(r)),
     })),
   ];
   const num = (v: string) => Math.trunc(Number(v));
@@ -162,6 +164,44 @@ export function Regole() {
           <details class="group-rules" key={g.key} open={!!q || !!openGroups[g.key]}
             onToggle={(e) => { if (!q) setOpenGroups({ ...openGroups, [g.key]: e.currentTarget.open }); }}>
             <summary>{g.title} · {rules.length}</summary>
+            {g.custom ? (
+              <div class="group-tools">
+                {renamingId === g.groupId ? (
+                  <div class="row">
+                    <input aria-label="Nuovo nome del gruppo" value={renameText} onInput={(e) => setRenameText(e.currentTarget.value)} />
+                    <button onClick={() => saveRename(g.groupId as string)}>Salva nome</button>
+                    <button class="link" onClick={() => { setRenamingId(null); setGroupError(null); }}>Annulla</button>
+                  </div>
+                ) : deletingId === g.groupId ? (
+                  <div class="banner" role="group" aria-label={`Eliminare il gruppo ${g.title}`}>
+                    {rules.length > 0 || allCount(g.groupId as string) > 0 ? (
+                      <>
+                        <p>Il gruppo "{g.title}" contiene {allCount(g.groupId as string)} regole. Cosa ne facciamo?</p>
+                        <div class="row">
+                          <button onClick={() => { setDeletingId(null); void deleteGroup(g.groupId as string, true); }}>Tieni le regole</button>
+                          <button class="danger-btn" onClick={() => { setDeletingId(null); void deleteGroup(g.groupId as string, false); }}>Elimina anche le regole</button>
+                          <button class="link" onClick={() => setDeletingId(null)}>Annulla</button>
+                        </div>
+                        <p class="muted">Se le tieni, finiscono nei gruppi automatici (Entrate, Uscite con addebito automatico, Altre uscite).</p>
+                      </>
+                    ) : (
+                      <>
+                        <p>Eliminare il gruppo "{g.title}"? È vuoto.</p>
+                        <div class="row">
+                          <button class="danger-btn" onClick={() => { setDeletingId(null); void deleteGroup(g.groupId as string, true); }}>Conferma eliminazione</button>
+                          <button class="link" onClick={() => setDeletingId(null)}>Annulla</button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <div class="actions">
+                    <button class="link" aria-label={`Rinomina gruppo: ${g.title}`} onClick={() => { setRenamingId(g.groupId as string); setRenameText(g.title); setGroupError(null); setDeletingId(null); }}>Rinomina gruppo</button>
+                    <button class="link danger" aria-label={`Elimina gruppo: ${g.title}`} onClick={() => { setDeletingId(g.groupId as string); setRenamingId(null); }}>Elimina gruppo</button>
+                  </div>
+                )}
+              </div>
+            ) : null}
             <ul class="items">
               {rules.map((r) => (
                 <li class={`item rule ${r.active ? '' : 'skipped'}`} key={r.id}>
@@ -176,7 +216,12 @@ export function Regole() {
                     <small> {r.monthAmounts ? 'importi per mese' : formatEuro(r.amount)}{r.variable ? ' (variabile)' : ''}{r.autoDebit ? ` · ${r.kind === 'income' ? 'accredito' : 'addebito'} automatico` : ''}{nextDates(r, 1)[0] ? ` · prossima ${fmtDay(nextDates(r, 1)[0])}` : ''}</small>
                   </span>
                   <span class="actions">
-                    <button class="link" onClick={() => edit(r)}>Modifica</button>
+                    <select class="move" aria-label={`Gruppo di ${r.name}`} value={r.groupId && known.has(r.groupId) ? r.groupId : ''}
+                onChange={(e) => void moveRuleToGroup(r.id, e.currentTarget.value || undefined)}>
+                <option value="">Senza gruppo</option>
+                {groups.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+              </select>
+              <button class="link" onClick={() => edit(r)}>Modifica</button>
                     <button class="link danger" aria-label={`Elimina: ${r.name}`}
                       onClick={() => {
                         if (!window.confirm(`Eliminare la regola "${r.name}"? Spariranno anche le sue correzioni mensili.`)) return;
@@ -190,41 +235,15 @@ export function Regole() {
           </details>
         );
       })}
-      <details class="manage-groups">
-        <summary>Gestisci gruppi</summary>
-        <p class="muted">Crea i tuoi gruppi e assegna le regole dal modulo di ogni regola. Le regole senza gruppo restano in Entrate, Uscite con addebito automatico e Altre uscite.</p>
+      <section class="card new-group">
+        <h3>Nuovo gruppo</h3>
+        <p class="muted">Crea i tuoi gruppi e assegna le regole dal modulo di ogni regola, oppure con il menu "Gruppo" sotto ciascuna regola. Rinomina ed elimina un gruppo aprendolo.</p>
         <div class="row">
           <input aria-label="Nome nuovo gruppo" placeholder="Nome del gruppo" value={newGroup} onInput={(e) => setNewGroup(e.currentTarget.value)} />
           <button onClick={createGroup}>Aggiungi gruppo</button>
         </div>
         {groupError ? <p role="alert" class="neg">{groupError}</p> : null}
-        <ul class="items">
-          {[...groups].sort((a, b) => a.name.localeCompare(b.name)).map((g) => (
-            <li class="group-row" key={g.id}>
-              {renamingId === g.id ? (
-                <>
-                  <input aria-label="Nuovo nome del gruppo" value={renameText} onInput={(e) => setRenameText(e.currentTarget.value)} />
-                  <button onClick={() => saveRename(g.id)}>Salva nome</button>
-                  <button class="link" onClick={() => { setRenamingId(null); setGroupError(null); }}>Annulla</button>
-                </>
-              ) : (
-                <>
-                  <span class="name">{g.name}</span>
-                  <span class="actions">
-                    <button class="link" aria-label={`Rinomina gruppo: ${g.name}`} onClick={() => { setRenamingId(g.id); setRenameText(g.name); setGroupError(null); }}>Rinomina</button>
-                    <button class="link danger" aria-label={`Elimina gruppo: ${g.name}`}
-                      onClick={() => {
-                        if (!window.confirm(`Eliminare il gruppo "${g.name}"? Le sue regole restano, senza gruppo.`)) return;
-                        void deleteGroup(g.id);
-                      }}>Elimina</button>
-                  </span>
-                </>
-              )}
-            </li>
-          ))}
-          {groups.length === 0 ? <li class="empty">Nessun gruppo ancora.</li> : null}
-        </ul>
-      </details>
+      </section>
     </main>
     );
   }
