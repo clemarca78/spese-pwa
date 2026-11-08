@@ -74,9 +74,9 @@ describe('addebito automatico', () => {
     const items = buildItems(auto(), '2026-11-01', '2026-11-30', '2026-11-07');
     expect(items.find((i) => i.ruleId === 'a')?.paid).toBe(false);
   });
-  it('togliere la spunta (addebito non avvenuto) prevale sull automatico', () => {
+  it('una vecchia spunta tolta a mano (paid false) non impedisce l addebito automatico', () => {
     const d = auto();
     d.overrides = [{ ruleId: 'a', day: '2026-11-08', paid: false }];
-    expect(buildItems(d, '2026-11-01', '2026-11-30', '2026-11-10').find((i) => i.ruleId === 'a')?.paid).toBe(false);
+    expect(buildItems(d, '2026-11-01', '2026-11-30', '2026-11-10').find((i) => i.ruleId === 'a')).toMatchObject({ paid: true, paidOn: '2026-11-08' });
   });
 });

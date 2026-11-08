@@ -19,7 +19,7 @@ export function buildItems(data: AppData, from: Day, to: Day, today: Day = today
     for (const day of expandRule(rule, from, to)) {
       const o = data.overrides.find((x) => x.ruleId === rule.id && x.day === day);
       const hasAmount = o?.amount !== undefined;
-      const autoPaid = !!rule.autoDebit && o?.paid === undefined && day <= today;
+      const autoPaid = !!rule.autoDebit && o?.paid !== true && day <= today; // una spunta tolta in passato non conta
       items.push({
         key: `${rule.id}@${day}`,
         ruleId: rule.id,
@@ -28,7 +28,7 @@ export function buildItems(data: AppData, from: Day, to: Day, today: Day = today
         day,
         amount: hasAmount ? (o!.amount as number) : rule.variable ? estimateVariable(rule, data.overrides, day) : rule.amount,
         estimated: !hasAmount && rule.variable,
-        paid: o?.paid ?? autoPaid,
+        paid: (o?.paid ?? false) || autoPaid,
         ...(autoPaid ? { paidOn: day } : o?.paidOn ? { paidOn: o.paidOn } : {}),
         ...(o?.paidAt ? { paidAt: o.paidAt } : {}),
         skipped: o?.skipped ?? false,
