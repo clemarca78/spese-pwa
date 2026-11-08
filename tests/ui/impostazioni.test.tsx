@@ -46,6 +46,18 @@ describe('Impostazioni', () => {
     pick(r.getByLabelText('Importa backup'), exportJson(other));
     await waitFor(() => expect(data.value.balances[0].value).toBe(999));
   });
+  it('Esporta regole scarica solo le regole', async () => {
+    const d = data.value;
+    data.value = { ...d, rules: [{ id: 'm', name: 'Mutuo', kind: 'expense', amount: 60000, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=1', start: '2026-01-01', active: true }] };
+    let blob: Blob | undefined;
+    Object.assign(URL, { createObjectURL: (b: Blob) => { blob = b; return 'blob:x'; } });
+    const r = render(<Impostazioni />);
+    fireEvent.click(r.getByText('Esporta regole'));
+    await waitFor(() => expect(blob).toBeDefined());
+    const parsed = JSON.parse(await (blob as Blob).text());
+    expect(parsed).toMatchObject({ type: 'rules', rules: [{ name: 'Mutuo' }] });
+    expect(r.getByRole('status').textContent).toMatch(/1 regol/);
+  });
   it('Importa regole aggiunge le regole senza cancellare i saldi', async () => {
     const rules = {
       type: 'rules', schemaVersion: 1, varieDailyDefault: 4600,

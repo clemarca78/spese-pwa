@@ -1,5 +1,5 @@
 import { useState } from 'preact/hooks';
-import { ImportError, exportJson, mergeRules, parseImport, parseRulesFile } from '../storage/backup';
+import { ImportError, exportJson, exportRulesJson, mergeRules, parseImport, parseRulesFile } from '../storage/backup';
 import { connectDrive, conflictResolver, disconnectDrive, driveConnected, lastSyncAt, syncNow } from '../state/sync';
 import { data, getRepo, mutate, syncStatus } from '../state/store';
 import { createDriveAdapter } from '../sync/drive';
@@ -94,6 +94,10 @@ export function Impostazioni() {
 
       <section class="card">
         <h3>Regole da file</h3>
+        <button onClick={() => {
+          download(`spese-regole-${new Date().toISOString().slice(0, 10)}.json`, exportRulesJson(data.value));
+          setMessage({ ok: true, text: `${data.value.rules.length} regole esportate.` });
+        }}>Esporta regole</button>
         <label>Importa regole <input type="file" accept="application/json,.json" aria-label="Importa regole"
           onChange={(e) => void importRules(e.currentTarget.files?.[0])} /></label>
       </section>

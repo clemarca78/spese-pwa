@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
 import {
-  ImportError, backupDue, emptyData, exportJson, mergeRules, parseImport, parseRulesFile,
+  ImportError, backupDue, emptyData, exportJson, exportRulesJson, mergeRules, parseImport, parseRulesFile,
 } from '../../src/storage/backup';
 import { openRepo } from '../../src/storage/repo';
 import type { Rule } from '../../src/domain/types';
@@ -76,6 +76,19 @@ describe('validazione robusta', () => {
   it('rifiuta impostazioni incomplete', () => {
     const d = { ...emptyData(), settings: {} };
     expect(() => parseImport(JSON.stringify(d))).toThrow(ImportError);
+  });
+});
+
+describe('esporta regole', () => {
+  it('il file esportato si reimporta identico (regole e spese varie)', () => {
+    const d = emptyData();
+    d.rules = [rule({ id: 'a', autoDebit: true }), rule({ id: 'b', name: 'Altra', kind: 'income', end: '2027-01-01' })];
+    d.settings.varieDailyDefault = 4600;
+    d.balances = [{ value: 1, day: '2026-11-01' }];
+    const text = exportRulesJson(d);
+    expect(JSON.parse(text)).toMatchObject({ type: 'rules', schemaVersion: 1 });
+    expect(JSON.parse(text).balances).toBeUndefined(); // niente saldi né voci: solo regole
+    expect(parseRulesFile(text)).toEqual({ rules: d.rules, varieDailyDefault: 4600 });
   });
 });
 

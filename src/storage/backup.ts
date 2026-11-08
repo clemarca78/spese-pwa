@@ -127,6 +127,11 @@ export function parseRulesFile(text: string): { rules: Rule[]; varieDailyDefault
   return { rules, varieDailyDefault: o.varieDailyDefault as number };
 }
 
+/** Solo le regole e le spese varie: si reimporta con "Importa regole" su un altro telefono o dopo un reset. */
+export function exportRulesJson(d: AppData): string {
+  return JSON.stringify({ type: 'rules', schemaVersion: 1, rules: d.rules, varieDailyDefault: d.settings.varieDailyDefault }, null, 2);
+}
+
 export function mergeRules(d: AppData, rules: Rule[], varieDailyDefault?: Cents): AppData {
   const byId = new Map(d.rules.map((r) => [r.id, r]));
   for (const r of rules) byId.set(r.id, r);
