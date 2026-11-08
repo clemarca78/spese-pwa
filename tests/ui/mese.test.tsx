@@ -148,7 +148,7 @@ describe('Mese', () => {
     d.balances = [{ value: 150000, day: '2026-11-03' }];
     d.settings.lastBackupAt = new Date().toISOString();
     d.rules = [
-      { id: 't', name: 'Tim', kind: 'expense', amount: 2789, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=8', start: '2026-11-01', active: true, autoDebit: true },
+      { id: 't', name: 'Tim', kind: 'expense', amount: 2789, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=28', start: '2026-11-01', active: true, autoDebit: true },
       { id: 'i', name: 'INPS', kind: 'income', amount: 20380, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=25', start: '2026-11-01', active: true, autoDebit: true },
       { id: 'p', name: 'Palestra', kind: 'expense', amount: 4000, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=10', start: '2026-11-01', active: true },
     ];
@@ -165,8 +165,8 @@ describe('Mese', () => {
     d.balances = [{ value: 150000, day: '2026-11-03' }];
     d.settings.lastBackupAt = new Date().toISOString();
     d.rules = [
-      { id: 't', name: 'Tim', kind: 'expense', amount: 2789, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=8', start: '2026-11-01', active: true, autoDebit: true },
-      { id: 'e', name: 'Enel', kind: 'expense', amount: 6000, variable: true, rrule: 'FREQ=MONTHLY;BYMONTHDAY=9', start: '2026-11-01', active: true, autoDebit: true },
+      { id: 't', name: 'Tim', kind: 'expense', amount: 2789, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=28', start: '2026-11-01', active: true, autoDebit: true },
+      { id: 'e', name: 'Enel', kind: 'expense', amount: 6000, variable: true, rrule: 'FREQ=MONTHLY;BYMONTHDAY=27', start: '2026-11-01', active: true, autoDebit: true },
       { id: 'p', name: 'Palestra', kind: 'expense', amount: 4000, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=10', start: '2026-11-01', active: true },
     ];
     d.oneOffs = [{ id: 'o1', name: 'bolletta', kind: 'expense', amount: 5000, day: '2026-11-10', paid: false }];
@@ -177,6 +177,24 @@ describe('Mese', () => {
     expect(queryByLabelText('Importo: Enel')).toBeTruthy();
     expect(queryByLabelText('Importo: Palestra')).toBeNull(); // fissa, anche senza addebito automatico
     expect(queryByLabelText('Importo: bolletta')).toBeNull(); // voce inserita a mano: si usa Modifica
+  });
+  it('le voci automatiche la cui data è passata spariscono dall elenco e scalano dal conto', () => {
+    const d = emptyData();
+    d.balances = [{ value: 150000, day: '2026-11-03' }];
+    d.settings.lastBackupAt = new Date().toISOString();
+    d.rules = [
+      { id: 'tim', name: 'Tim', kind: 'expense', amount: 2789, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=8', start: '2026-11-01', active: true, autoDebit: true },
+      { id: 'inps', name: 'INPS', kind: 'income', amount: 20380, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=9', start: '2026-11-01', active: true, autoDebit: true },
+      { id: 'ass', name: 'Assicurazione', kind: 'expense', amount: 3695, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=27', start: '2026-11-01', active: true, autoDebit: true },
+      { id: 'pal', name: 'Palestra', kind: 'expense', amount: 4000, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=10', start: '2026-11-01', active: true },
+    ];
+    data.value = d;
+    const { queryByText, container } = render(<Mese />); // oggi: 20/11
+    expect(queryByText('Tim')).toBeNull();
+    expect(queryByText('INPS')).toBeNull();
+    expect(queryByText('Assicurazione')).toBeTruthy(); // 27/11: non è ancora passata
+    expect(queryByText('Palestra')).toBeTruthy(); // non automatica: resta finché non la spunti
+    expect(tid(container, 'residuo')).toContain('1.675,91'); // 1.500,00 - 27,89 + 203,80
   });
   it('"Già pagata" crea la voce già spuntata e il residuo scala comunque', () => {
     withBalance();

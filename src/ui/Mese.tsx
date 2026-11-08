@@ -167,9 +167,10 @@ export function Mese() {
   const start = `${viewMonth.value}-01`;
   const end = endOfMonth(start);
   const bal = latestBalance(d);
-  const all = buildItems(d, start, end);
-  const items = all.filter(passes[filtro.value]);
   const today = todayLocal();
+  // le voci automatiche già passate sono già nel conto: non servono più nell'elenco
+  const all = buildItems(d, start, end).filter((i) => !(i.autoDebit && i.paid && i.day <= today));
+  const items = all.filter(passes[filtro.value]);
   const res = residual(d, today, today);
   const av = available(d, today, d.settings.payDay ?? 10);
   const debitsTotal = av ? av.debits.reduce((s, i) => s + i.amount, 0) : 0;
