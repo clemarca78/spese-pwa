@@ -64,6 +64,8 @@ export interface AppData {
   updatedAt: string;
   rules: Rule[];
   groups?: RuleGroup[];
+  /** I gruppi predefiniti (Entrate, Uscite con addebito automatico, Altre uscite) sono stati creati. */
+  defaultGroupsSeeded?: boolean;
   overrides: Override[];
   oneOffs: OneOff[];
   balances: Balance[];

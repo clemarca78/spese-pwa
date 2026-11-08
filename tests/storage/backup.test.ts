@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
 import {
-  ImportError, backupDue, emptyData, exportJson, exportRulesJson, mergeRules, parseImport, parseRulesFile,
+  ImportError, backupDue, defaultGroupId, emptyData, ensureDefaultGroups, exportJson, exportRulesJson, mergeRules, parseImport, parseRulesFile,
 } from '../../src/storage/backup';
 import { openRepo } from '../../src/storage/repo';
 import type { Rule } from '../../src/domain/types';
@@ -92,6 +92,39 @@ describe('esporta regole', () => {
     expect(JSON.parse(text)).toMatchObject({ type: 'rules', schemaVersion: 1 });
     expect(JSON.parse(text).balances).toBeUndefined(); // niente saldi né voci: solo regole
     expect(parseRulesFile(text)).toEqual({ rules: d.rules, varieDailyDefault: 4600 });
+  });
+});
+
+describe('gruppi predefiniti', () => {
+  const dataWith = (rules: Rule[], extra: object = {}) => ({ ...emptyData(), rules, ...extra });
+  it('defaultGroupId sceglie il gruppo in base al tipo della regola', () => {
+    expect(defaultGroupId({ kind: 'income' })).toBe('g-entrate');
+    expect(defaultGroupId({ kind: 'expense', autoDebit: true })).toBe('g-uscite-auto');
+    expect(defaultGroupId({ kind: 'expense' })).toBe('g-altre-uscite');
+  });
+  it('crea Entrate, Uscite con addebito automatico e Altre uscite e vi assegna le regole senza gruppo', () => {
+    const d = ensureDefaultGroups(dataWith([
+      rule({ id: 'a', kind: 'income' }), rule({ id: 'b', autoDebit: true }), rule({ id: 'c' }),
+    ]));
+    expect(d.groups?.map((g) => g.name)).toEqual(['Entrate', 'Uscite con addebito automatico', 'Altre uscite']);
+    expect(d.rules.map((r) => r.groupId)).toEqual(['g-entrate', 'g-uscite-auto', 'g-altre-uscite']);
+  });
+  it('mantiene i gruppi dell utente e le assegnazioni valide', () => {
+    const d = ensureDefaultGroups(dataWith([rule({ id: 'a', groupId: 'mio' }), rule({ id: 'b', groupId: 'sparito' })], { groups: [{ id: 'mio', name: 'Bollette' }] }));
+    expect(d.groups?.map((g) => g.name)).toEqual(['Entrate', 'Uscite con addebito automatico', 'Altre uscite', 'Bollette']);
+    expect(d.rules.map((r) => r.groupId)).toEqual(['mio', 'g-altre-uscite']);
+  });
+  it('lo fa una volta sola: un gruppo eliminato dopo non ricompare', () => {
+    const once = ensureDefaultGroups(dataWith([rule({ id: 'a' })]));
+    const without = { ...once, groups: (once.groups ?? []).filter((g) => g.id !== 'g-altre-uscite'), rules: once.rules.map(({ groupId: _g, ...r }) => r) };
+    const again = ensureDefaultGroups(without);
+    expect(again.groups?.some((g) => g.id === 'g-altre-uscite')).toBe(false);
+    expect(again.rules[0].groupId).toBeUndefined();
+  });
+  it('le regole importate senza gruppo vanno nel gruppo predefinito, se esiste', () => {
+    const base = ensureDefaultGroups(emptyData());
+    const merged = mergeRules(base, [rule({ id: 'n', autoDebit: true })]);
+    expect(merged.rules[0].groupId).toBe('g-uscite-auto');
   });
 });
 

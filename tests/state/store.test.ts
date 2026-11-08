@@ -83,13 +83,13 @@ describe('store', () => {
   it('crea, rinomina ed elimina gruppi; eliminando un gruppo le sue regole restano senza gruppo', async () => {
     await mutate((d) => ({ ...d, rules: [{ id: 'r1', name: 'Tim', kind: 'expense', amount: 1, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=8', start: '2026-01-01', active: true }] }));
     await addGroup('Bollette');
-    const id = (data.value.groups ?? [])[0].id;
-    expect(data.value.groups).toEqual([{ id, name: 'Bollette' }]);
+    const id = (data.value.groups ?? []).find((g) => g.name === 'Bollette')?.id as string;
+    expect(data.value.groups).toContainEqual({ id, name: 'Bollette' });
     await mutate((d) => ({ ...d, rules: d.rules.map((r) => ({ ...r, groupId: id })) }));
     await renameGroup(id, 'Utenze');
-    expect(data.value.groups?.[0].name).toBe('Utenze');
+    expect(data.value.groups?.find((g) => g.id === id)?.name).toBe('Utenze');
     await deleteGroup(id);
-    expect(data.value.groups).toEqual([]);
+    expect((data.value.groups ?? []).some((g) => g.id === id)).toBe(false);
     expect('groupId' in data.value.rules[0]).toBe(false);
   });
   it('eliminando un gruppo senza tenere le regole, spariscono anche le regole e le loro correzioni', async () => {
@@ -111,6 +111,13 @@ describe('store', () => {
     expect(data.value.rules[0].groupId).toBe('g2');
     await moveRuleToGroup('r1', undefined);
     expect('groupId' in data.value.rules[0]).toBe(false);
+  });
+  it('ogni modifica crea i gruppi predefiniti una volta sola', async () => {
+    await mutate((d) => ({ ...d, rules: [{ id: 'r1', name: 'x', kind: 'income', amount: 1, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=8', start: '2026-01-01', active: true }] }));
+    expect(data.value.groups?.map((g) => g.id)).toEqual(['g-entrate', 'g-uscite-auto', 'g-altre-uscite']);
+    expect(data.value.defaultGroupsSeeded).toBe(true);
+    await deleteGroup('g-altre-uscite');
+    expect(data.value.groups?.some((g) => g.id === 'g-altre-uscite')).toBe(false);
   });
   it('setItemAmount crea un override con importo reale', async () => {
     await setItemAmount(ruleItem, 12345);

@@ -15,6 +15,28 @@ export function emptyData(): AppData {
   };
 }
 
+/** Gruppi predefiniti: sono gruppi veri (si rinominano, si eliminano), con id fissi uguali su ogni dispositivo. */
+export const DEFAULT_GROUPS: RuleGroup[] = [
+  { id: 'g-entrate', name: 'Entrate' },
+  { id: 'g-uscite-auto', name: 'Uscite con addebito automatico' },
+  { id: 'g-altre-uscite', name: 'Altre uscite' },
+];
+
+export function defaultGroupId(r: Pick<Rule, 'kind' | 'autoDebit'>): string {
+  return r.kind === 'income' ? 'g-entrate' : r.autoDebit ? 'g-uscite-auto' : 'g-altre-uscite';
+}
+
+/** Alla prima volta crea i gruppi predefiniti e vi assegna le regole senza gruppo. Poi non fa più nulla. */
+export function ensureDefaultGroups(d: AppData): AppData {
+  if (d.defaultGroupsSeeded) return d;
+  const mine = d.groups ?? [];
+  const have = new Set(mine.map((g) => g.id));
+  const groups = [...DEFAULT_GROUPS.filter((g) => !have.has(g.id)), ...mine];
+  const known = new Set(groups.map((g) => g.id));
+  const rules = d.rules.map((r) => (r.groupId && known.has(r.groupId) ? r : { ...r, groupId: defaultGroupId(r) }));
+  return { ...d, groups, rules, defaultGroupsSeeded: true };
+}
+
 export function exportJson(d: AppData): string {
   return JSON.stringify(d, null, 2);
 }
@@ -160,7 +182,12 @@ export function exportRulesJson(d: AppData): string {
 
 export function mergeRules(d: AppData, rules: Rule[], varieDailyDefault?: Cents, groups?: RuleGroup[]): AppData {
   const byId = new Map(d.rules.map((r) => [r.id, r]));
-  for (const r of rules) byId.set(r.id, r);
+  const known = new Set([...(d.groups ?? []), ...(groups ?? [])].map((g) => g.id));
+  for (const r of rules) {
+    const target = defaultGroupId(r);
+    // senza gruppo, la regola importata va nel gruppo predefinito (se esiste)
+    byId.set(r.id, !r.groupId && known.has(target) ? { ...r, groupId: target } : r);
+  }
   const groupsById = new Map((d.groups ?? []).map((g) => [g.id, g]));
   for (const g of groups ?? []) groupsById.set(g.id, g);
   return {

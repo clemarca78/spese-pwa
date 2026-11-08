@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render } from '@testing-library/preact';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { data } from '../../src/state/store';
-import { emptyData } from '../../src/storage/backup';
+import { emptyData, ensureDefaultGroups } from '../../src/storage/backup';
 import { Regole } from '../../src/ui/Regole';
 
 beforeEach(() => {
@@ -123,6 +123,61 @@ describe('Regole', () => {
     expect(data.value.overrides.map((o) => o.ruleId)).toEqual(['r2']);
     confirm.mockRestore();
   });
+  describe('gruppi predefiniti come gruppi veri', () => {
+    const R = (id: string, name: string, extra: object = {}) => ({
+      id, name, kind: 'expense' as const, amount: 1000, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=10', start: '2026-01-01', active: true, ...extra,
+    });
+    function seeded() {
+      const d = emptyData();
+      d.rules = [R('1', 'Tim', { autoDebit: true }), R('2', 'Palestra'), R('3', 'INPS', { kind: 'income' })];
+      data.value = ensureDefaultGroups(d);
+    }
+    it('Entrate, Uscite con addebito automatico e Altre uscite sono gruppi con le loro regole', () => {
+      seeded();
+      const r = render(<Regole />);
+      const titles = Array.from(r.container.querySelectorAll('details.group-rules > summary')).map((e) => e.textContent);
+      expect(titles).toEqual(['Entrate · 1', 'Uscite con addebito automatico · 1', 'Altre uscite · 1']);
+      expect((r.getByLabelText('Gruppo di INPS') as HTMLSelectElement).value).toBe('g-entrate');
+      expect((r.getByLabelText('Gruppo di Tim') as HTMLSelectElement).value).toBe('g-uscite-auto');
+    });
+    it('anche i gruppi predefiniti si rinominano', () => {
+      seeded();
+      const r = render(<Regole />);
+      fireEvent.click(r.getByLabelText('Rinomina gruppo: Altre uscite'));
+      fireEvent.input(r.getByLabelText('Nuovo nome del gruppo'), { target: { value: 'Spese mie' } });
+      fireEvent.click(r.getByText('Salva nome'));
+      expect(data.value.groups?.find((g) => g.id === 'g-altre-uscite')?.name).toBe('Spese mie');
+    });
+    it('una regola si sposta da un gruppo predefinito a un altro', () => {
+      seeded();
+      const r = render(<Regole />);
+      fireEvent.change(r.getByLabelText('Gruppo di Palestra'), { target: { value: 'g-uscite-auto' } });
+      expect(data.value.rules.find((x) => x.id === '2')?.groupId).toBe('g-uscite-auto');
+    });
+    it('eliminando un gruppo e tenendo le regole, finiscono in Senza gruppo', () => {
+      seeded();
+      const r = render(<Regole />);
+      fireEvent.click(r.getByLabelText('Elimina gruppo: Altre uscite'));
+      fireEvent.click(r.getByText('Tieni le regole'));
+      const titles = Array.from(r.container.querySelectorAll('details.group-rules > summary')).map((e) => e.textContent);
+      expect(titles).toEqual(['Entrate · 1', 'Uscite con addebito automatico · 1', 'Senza gruppo · 1']);
+    });
+    it('una nuova regola propone il gruppo giusto in base al tipo', () => {
+      seeded();
+      const r = render(<Regole />);
+      fireEvent.click(r.getByText('Nuova regola'));
+      const sel = () => (r.getByLabelText('Gruppo') as HTMLSelectElement).value;
+      expect(sel()).toBe('g-altre-uscite');
+      fireEvent.click(r.getByLabelText('Addebito automatico sul conto'));
+      expect(sel()).toBe('g-uscite-auto');
+      fireEvent.change(r.getByLabelText('Tipo regola'), { target: { value: 'income' } });
+      expect(sel()).toBe('g-entrate');
+      fireEvent.input(r.getByLabelText('Nome regola'), { target: { value: 'Stipendio' } });
+      fireEvent.input(r.getByLabelText('Importo regola'), { target: { value: '2000' } });
+      fireEvent.click(r.getByText('Salva regola'));
+      expect(data.value.rules.find((x) => x.name === 'Stipendio')?.groupId).toBe('g-entrate');
+    });
+  });
   describe('gruppi personalizzati', () => {
     const rule = (id: string, name: string, extra: object = {}) => ({
       id, name, kind: 'expense' as const, amount: 1000, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=10', start: '2026-01-01', active: true, ...extra,
@@ -131,8 +186,9 @@ describe('Regole', () => {
       const r = render(<Regole />);
       fireEvent.input(r.getByLabelText('Nome nuovo gruppo'), { target: { value: 'Bollette' } });
       fireEvent.click(r.getByText('Aggiungi gruppo'));
-      expect(data.value.groups?.map((g) => g.name)).toEqual(['Bollette']);
-      expect(r.container.querySelector('details.group-rules > summary')?.textContent).toBe('Bollette · 0');
+      expect(data.value.groups?.map((g) => g.name)).toEqual(['Entrate', 'Uscite con addebito automatico', 'Altre uscite', 'Bollette']);
+      const titles = Array.from(r.container.querySelectorAll('details.group-rules > summary')).map((e) => e.textContent);
+      expect(titles).toContain('Bollette · 0');
     });
     it('non crea gruppi con nome vuoto o doppio', () => {
       const d = emptyData();
@@ -145,14 +201,14 @@ describe('Regole', () => {
       expect(data.value.groups).toHaveLength(1);
       expect(r.getByRole('alert').textContent).toMatch(/esiste già/i);
     });
-    it('una regola assegnata a un gruppo compare lì; le altre restano nei gruppi automatici', () => {
+    it('una regola assegnata a un gruppo compare lì; le altre restano in Senza gruppo', () => {
       const d = emptyData();
       d.groups = [{ id: 'g1', name: 'Bollette' }];
       d.rules = [rule('1', 'Enel luce', { groupId: 'g1', autoDebit: true }), rule('2', 'Palestra')];
       data.value = d;
       const r = render(<Regole />);
       const titles = Array.from(r.container.querySelectorAll('details.group-rules > summary')).map((e) => e.textContent);
-      expect(titles).toEqual(['Bollette · 1', 'Altre uscite · 1']);
+      expect(titles).toEqual(['Bollette · 1', 'Senza gruppo · 1']);
     });
     it('il modulo assegna il gruppo e lo riapre', () => {
       const d = emptyData();
@@ -171,28 +227,29 @@ describe('Regole', () => {
     it('rinomina un gruppo', () => {
       const d = emptyData();
       d.groups = [{ id: 'g1', name: 'Bollette' }];
-      data.value = d;
+      data.value = ensureDefaultGroups(d);
       const r = render(<Regole />);
       fireEvent.click(r.getByLabelText('Rinomina gruppo: Bollette'));
       fireEvent.input(r.getByLabelText('Nuovo nome del gruppo'), { target: { value: 'Utenze' } });
       fireEvent.click(r.getByText('Salva nome'));
-      expect(data.value.groups?.[0].name).toBe('Utenze');
+      expect(data.value.groups?.find((g) => g.id === 'g1')?.name).toBe('Utenze');
     });
     function withGroup() {
       const d = emptyData();
       d.groups = [{ id: 'g1', name: 'Bollette' }];
       d.rules = [rule('1', 'Enel luce', { groupId: 'g1' }), rule('2', 'Gas', { groupId: 'g1' })];
       d.overrides = [{ ruleId: '1', day: '2026-11-10', paid: true }];
-      data.value = d;
+      data.value = ensureDefaultGroups(d);
     }
+    const custom = () => (data.value.groups ?? []).filter((g) => g.id === 'g1');
     it('eliminando un gruppo con regole chiede cosa farne: tenerle le mette senza gruppo', () => {
       withGroup();
       const r = render(<Regole />);
       fireEvent.click(r.getByLabelText('Elimina gruppo: Bollette'));
-      expect(data.value.groups).toHaveLength(1); // nulla finché non scegli
+      expect(custom()).toHaveLength(1); // nulla finché non scegli
       expect(r.getByText(/contiene 2 regole/i)).toBeTruthy();
       fireEvent.click(r.getByText('Tieni le regole'));
-      expect(data.value.groups).toEqual([]);
+      expect(custom()).toEqual([]);
       expect(data.value.rules).toHaveLength(2);
       expect(data.value.rules.every((x) => x.groupId === undefined)).toBe(true);
     });
@@ -201,7 +258,7 @@ describe('Regole', () => {
       const r = render(<Regole />);
       fireEvent.click(r.getByLabelText('Elimina gruppo: Bollette'));
       fireEvent.click(r.getByText('Elimina anche le regole'));
-      expect(data.value.groups).toEqual([]);
+      expect(custom()).toEqual([]);
       expect(data.value.rules).toEqual([]);
       expect(data.value.overrides).toEqual([]);
     });
@@ -210,24 +267,24 @@ describe('Regole', () => {
       const r = render(<Regole />);
       fireEvent.click(r.getByLabelText('Elimina gruppo: Bollette'));
       fireEvent.click(r.getByText('Annulla'));
-      expect(data.value.groups).toHaveLength(1);
+      expect(custom()).toHaveLength(1);
       expect(data.value.rules).toHaveLength(2);
       expect(r.queryByText('Tieni le regole')).toBeNull();
     });
     it('un gruppo vuoto si elimina con una sola conferma', () => {
       const d = emptyData();
       d.groups = [{ id: 'g1', name: 'Vuoto' }];
-      data.value = d;
+      data.value = ensureDefaultGroups(d);
       const r = render(<Regole />);
       fireEvent.click(r.getByLabelText('Elimina gruppo: Vuoto'));
       fireEvent.click(r.getByText('Conferma eliminazione'));
-      expect(data.value.groups).toEqual([]);
+      expect((data.value.groups ?? []).some((g) => g.id === 'g1')).toBe(false);
     });
     it('sposta una regola da un gruppo all altro dall elenco', () => {
       const d = emptyData();
       d.groups = [{ id: 'g1', name: 'Bollette' }, { id: 'g2', name: 'Casa' }];
       d.rules = [rule('1', 'Enel luce', { groupId: 'g1' })];
-      data.value = d;
+      data.value = ensureDefaultGroups(d);
       const r = render(<Regole />);
       fireEvent.change(r.getByLabelText('Gruppo di Enel luce'), { target: { value: 'g2' } });
       expect(data.value.rules[0].groupId).toBe('g2');
@@ -248,7 +305,7 @@ describe('Regole', () => {
         R('4', 'Dentista', { active: false }),
         R('5', 'INPS', { kind: 'income', autoDebit: true }),
       ];
-      data.value = d;
+      data.value = ensureDefaultGroups(d);
     }
     it('raggruppa le regole in Entrate, Uscite con addebito automatico e Altre uscite con il conteggio', () => {
       setupRules();

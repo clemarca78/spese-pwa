@@ -1,7 +1,7 @@
 import { signal } from '@preact/signals';
 import { todayLocal } from '../domain/days';
 import type { AppData, Cents, Day, Item, OneOff, Override } from '../domain/types';
-import { emptyData } from '../storage/backup';
+import { emptyData, ensureDefaultGroups } from '../storage/backup';
 import type { Repo } from '../storage/repo';
 
 export const data = signal<AppData>(emptyData());
@@ -22,12 +22,14 @@ export function getRepo(): Repo | null {
 
 export async function initStore(repo: Repo): Promise<void> {
   repoRef = repo;
-  data.value = await repo.load();
+  const loaded = await repo.load();
+  data.value = ensureDefaultGroups(loaded);
+  if (data.value !== loaded) await repo.save(data.value);
   ready.value = true;
 }
 
 export async function mutate(fn: (d: AppData) => AppData): Promise<void> {
-  const next: AppData = { ...fn(data.value), updatedAt: new Date().toISOString() };
+  const next: AppData = ensureDefaultGroups({ ...fn(data.value), updatedAt: new Date().toISOString() });
   data.value = next;
   await repoRef?.save(next);
   syncHook?.();
@@ -65,8 +67,8 @@ export function setPaid(item: Item, paid: boolean): Promise<void> {
 /** Scambio sincrono: se nel frattempo c'è stata una modifica locale non sovrascrive nulla. */
 export async function applyRemote(remote: AppData, expectedLocalUpdatedAt: string): Promise<boolean> {
   if (data.value.updatedAt !== expectedLocalUpdatedAt) return false;
-  data.value = remote;
-  await repoRef?.save(remote);
+  data.value = ensureDefaultGroups(remote);
+  await repoRef?.save(data.value);
   return true;
 }
 

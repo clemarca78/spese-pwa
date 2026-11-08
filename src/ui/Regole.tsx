@@ -4,6 +4,7 @@ import { formatEuro, parseEuro } from '../domain/money';
 import { expandRule } from '../domain/recurrence';
 import { buildRrule, parseRrule, validateSpec, type RecurrenceSpec } from '../domain/ruleBuilder';
 import type { Kind, Rule } from '../domain/types';
+import { defaultGroupId } from '../storage/backup';
 import { addGroup, data, deleteGroup, deleteRule, moveRuleToGroup, mutate, renameGroup } from '../state/store';
 
 const WD_LABEL = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
@@ -23,11 +24,6 @@ function nextDates(rule: Rule, n: number): string[] {
 }
 
 const autoLabel = (k: Kind) => (k === 'income' ? 'Accredito automatico sul conto' : 'Addebito automatico sul conto');
-const GROUPS: Array<{ key: string; title: string; test: (r: Rule) => boolean }> = [
-  { key: 'entrate', title: 'Entrate', test: (r) => r.kind === 'income' },
-  { key: 'auto', title: 'Uscite con addebito automatico', test: (r) => r.kind === 'expense' && !!r.autoDebit },
-  { key: 'altre', title: 'Altre uscite', test: (r) => r.kind === 'expense' && !r.autoDebit },
-];
 const EMPTY_SPEC: RecurrenceSpec = { freq: 'monthly', interval: 1, monthDay: 1 };
 
 export function Regole() {
@@ -47,6 +43,7 @@ export function Regole() {
   const [end, setEnd] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [groupId, setGroupId] = useState('');
+  const [groupTouched, setGroupTouched] = useState(false);
   const [newGroup, setNewGroup] = useState('');
   const [groupError, setGroupError] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -64,13 +61,13 @@ export function Regole() {
   })();
 
   function reset() {
-    setEditingId(null); setName(''); setAmount(''); setVariable(false); setAutoDebit(false); setPerMonth(false); setMonthVals({}); setKind('expense'); setGroupId('');
+    setEditingId(null); setName(''); setAmount(''); setVariable(false); setAutoDebit(false); setPerMonth(false); setMonthVals({}); setKind('expense'); setGroupId(''); setGroupTouched(false);
     setSpec(EMPTY_SPEC); setStart(todayLocal()); setEnd(''); setError(null); setView('list');
   }
 
   function edit(r: Rule) {
     setEditingId(r.id); setName(r.name); setKind(r.kind);
-    setAmount((r.amount / 100).toFixed(2).replace('.', ',')); setVariable(r.variable); setAutoDebit(r.autoDebit ?? false); setGroupId(r.groupId ?? '');
+    setAmount((r.amount / 100).toFixed(2).replace('.', ',')); setVariable(r.variable); setAutoDebit(r.autoDebit ?? false); setGroupId(r.groupId ?? ''); setGroupTouched(true);
     setPerMonth(!!r.monthAmounts);
     setMonthVals(Object.fromEntries(Object.entries(r.monthAmounts ?? {}).map(([m, c]) => [Number(m), (c / 100).toFixed(2).replace('.', ',')])));
     setSpec(parseRrule(r.rrule)); setStart(r.start); setEnd(r.end ?? ''); setError(null); setView('form');
@@ -95,7 +92,7 @@ export function Regole() {
       rrule: buildRrule(spec), start, ...(end ? { end } : {}), active: true,
       ...(autoDebit ? { autoDebit: true } : {}),
       ...(monthAmounts ? { monthAmounts } : {}),
-      ...(groupId && groups.some((g) => g.id === groupId) ? { groupId } : {}),
+      ...(effectiveGroup && known.has(effectiveGroup) ? { groupId: effectiveGroup } : {}),
     };
     void mutate((d) => ({
       ...d,
@@ -105,6 +102,9 @@ export function Regole() {
   }
 
   const groups = data.value.groups ?? [];
+  const known = new Set(groups.map((g) => g.id));
+  const suggestedGroup = known.has(defaultGroupId({ kind, autoDebit })) ? defaultGroupId({ kind, autoDebit }) : '';
+  const effectiveGroup = groupTouched ? groupId : suggestedGroup;
   const nameTaken = (n: string, exceptId?: string) =>
     groups.some((g) => g.id !== exceptId && g.name.trim().toLowerCase() === n.trim().toLowerCase());
   function createGroup() {
@@ -129,15 +129,13 @@ export function Regole() {
     .filter((r) => !q || r.name.toLowerCase().includes(q))
     .sort((a, b) => Number(b.active) - Number(a.active) || a.name.localeCompare(b.name));
   const found = visible.length;
-  const known = new Set(groups.map((g) => g.id));
   const allCount = (id: string) => data.value.rules.filter((r) => r.groupId === id).length;
+  // i gruppi sono nell'ordine in cui sono stati creati; le regole senza gruppo valido stanno in "Senza gruppo"
   const sections = [
-    ...[...groups].sort((a, b) => a.name.localeCompare(b.name)).map((g) => ({
+    ...groups.map((g) => ({
       key: `g-${g.id}`, groupId: g.id as string | undefined, title: g.name, custom: true, rules: visible.filter((r) => r.groupId === g.id),
     })),
-    ...GROUPS.map((g) => ({
-      key: g.key, groupId: undefined as string | undefined, title: g.title, custom: false, rules: visible.filter((r) => !(r.groupId && known.has(r.groupId)) && g.test(r)),
-    })),
+    { key: 'none', groupId: undefined as string | undefined, title: 'Senza gruppo', custom: false, rules: visible.filter((r) => !r.groupId || !known.has(r.groupId)) },
   ];
   const num = (v: string) => Math.trunc(Number(v));
   const weekdayPills = () =>
@@ -182,7 +180,7 @@ export function Regole() {
                           <button class="danger-btn" onClick={() => { setDeletingId(null); void deleteGroup(g.groupId as string, false); }}>Elimina anche le regole</button>
                           <button class="link" onClick={() => setDeletingId(null)}>Annulla</button>
                         </div>
-                        <p class="muted">Se le tieni, finiscono nei gruppi automatici (Entrate, Uscite con addebito automatico, Altre uscite).</p>
+                        <p class="muted">Se le tieni, finiscono nel gruppo di default "Senza gruppo": da lì le puoi spostare dove vuoi.</p>
                       </>
                     ) : (
                       <>
@@ -237,7 +235,7 @@ export function Regole() {
       })}
       <section class="card new-group">
         <h3>Nuovo gruppo</h3>
-        <p class="muted">Crea i tuoi gruppi e assegna le regole dal modulo di ogni regola, oppure con il menu "Gruppo" sotto ciascuna regola. Rinomina ed elimina un gruppo aprendolo.</p>
+        <p class="muted">Entrate, Uscite con addebito automatico e Altre uscite sono gruppi come gli altri: si rinominano e si eliminano. Assegna le regole dal modulo di ogni regola o con il menu "Gruppo" sotto ciascuna. Rinomina ed elimina un gruppo aprendolo.</p>
         <div class="row">
           <input aria-label="Nome nuovo gruppo" placeholder="Nome del gruppo" value={newGroup} onInput={(e) => setNewGroup(e.currentTarget.value)} />
           <button onClick={createGroup}>Aggiungi gruppo</button>
@@ -266,9 +264,9 @@ export function Regole() {
         </div>
         <div class="row">
           <label class="field">Gruppo
-            <select aria-label="Gruppo" value={groupId} onChange={(e) => setGroupId(e.currentTarget.value)}>
-              <option value="">Nessuno (gruppi automatici)</option>
-              {[...groups].sort((a, b) => a.name.localeCompare(b.name)).map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+            <select aria-label="Gruppo" value={effectiveGroup} onChange={(e) => { setGroupId(e.currentTarget.value); setGroupTouched(true); }}>
+              <option value="">Senza gruppo</option>
+              {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
           </label>
         </div>
