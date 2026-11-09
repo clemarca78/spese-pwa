@@ -1,4 +1,5 @@
 import { signal } from '@preact/signals';
+import { latestBalance } from '../domain/calc';
 import { todayLocal } from '../domain/days';
 import type { AppData, Cents, Day, Item, OneOff, Override } from '../domain/types';
 import { emptyData, ensureDefaultGroups } from '../storage/backup';
@@ -62,6 +63,16 @@ export function setPaid(item: Item, paid: boolean): Promise<void> {
     }));
   }
   return mutate((d) => upsertOverride(d, item, { paid, ...stamp }));
+}
+
+/**
+ * Voce automatica arrivata prima della data. Se l'ultimo saldo la comprende già vale la data di quel saldo (non si somma di nuovo);
+ * altrimenti vale il momento di adesso, come una spunta.
+ */
+export function setEarly(item: Item, inBalance: boolean): Promise<void> {
+  const bal = latestBalance(data.value);
+  const stamp = inBalance && bal ? { paidOn: bal.day, paidAt: undefined } : paidStamp();
+  return mutate((d) => upsertOverride(d, item, { paid: true, ...stamp }));
 }
 
 /** Scambio sincrono: se nel frattempo c'è stata una modifica locale non sovrascrive nulla. */

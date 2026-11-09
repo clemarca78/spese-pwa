@@ -77,6 +77,20 @@ describe('Impostazioni', () => {
     fireEvent.input(input, { target: { value: '31' } });
     expect(data.value.settings.payDay).toBe(12);
   });
+  it('sceglie la regola dello stipendio tra le entrate', () => {
+    const d = data.value;
+    data.value = { ...d, rules: [
+      { id: 'i1', name: 'Stipendio', kind: 'income', amount: 200000, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=10', start: '2026-01-01', active: true },
+      { id: 'e1', name: 'Tim', kind: 'expense', amount: 2789, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=8', start: '2026-01-01', active: true },
+    ] };
+    const r = render(<Impostazioni />);
+    const sel = r.getByLabelText('Regola dello stipendio') as HTMLSelectElement;
+    expect(Array.from(sel.options).map((o) => o.textContent)).toEqual(['Nessuna: uso il giorno di riferimento', 'Stipendio']);
+    fireEvent.change(sel, { target: { value: 'i1' } });
+    expect(data.value.settings.salaryRuleId).toBe('i1');
+    fireEvent.change(sel, { target: { value: '' } });
+    expect(data.value.settings.salaryRuleId).toBeUndefined();
+  });
   it('cambia i giorni del promemoria di backup', () => {
     const r = render(<Impostazioni />);
     fireEvent.input(r.getByLabelText('Promemoria backup (giorni)'), { target: { value: '7' } });

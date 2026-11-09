@@ -208,6 +208,40 @@ describe('Mese', () => {
     expect(queryByLabelText('Pagata: farmacia')).toBeNull();
     expect(queryByLabelText('Pagata: bolletta')).toBeTruthy(); // la voce non pagata ha ancora la casella
   });
+  describe('accredito automatico arrivato prima', () => {
+    function early() {
+      const d = emptyData();
+      d.balances = [{ value: 150000, day: '2026-11-03' }];
+      d.settings.lastBackupAt = new Date().toISOString();
+      d.rules = [{ id: 's', name: 'Stipendio', kind: 'income', amount: 200000, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=25', start: '2026-11-01', active: true, autoDebit: true }];
+      data.value = d;
+    }
+    it('Non ancora nel saldo: si somma subito al conto e si può annullare', () => {
+      early();
+      const { getByText, getByLabelText, container, queryByText } = render(<Mese />);
+      expect(tid(container, 'residuo')).toContain('1.500,00');
+      fireEvent.click(getByLabelText('Già arrivata: Stipendio'));
+      fireEvent.click(getByText('Non ancora nel saldo'));
+      expect(tid(container, 'residuo')).toContain('3.500,00');
+      expect(queryByText('Già arrivata')).toBeNull();
+      fireEvent.click(getByLabelText('Annulla arrivo: Stipendio'));
+      expect(tid(container, 'residuo')).toContain('1.500,00');
+    });
+    it('Già nel mio saldo: il conto non cambia e alla data non si somma di nuovo', () => {
+      early();
+      const { getByText, getByLabelText, container } = render(<Mese />);
+      fireEvent.click(getByLabelText('Già arrivata: Stipendio'));
+      fireEvent.click(getByText('Già nel mio saldo'));
+      expect(tid(container, 'residuo')).toContain('1.500,00');
+      expect(data.value.overrides[0]).toMatchObject({ paid: true, paidOn: '2026-11-03' });
+    });
+    it('per un addebito automatico anticipato la scritta è Già addebitata', () => {
+      early();
+      data.value = { ...data.value, rules: [{ ...data.value.rules[0], kind: 'expense' }] };
+      const { getByLabelText } = render(<Mese />);
+      expect(getByLabelText('Già addebitata: Stipendio')).toBeTruthy();
+    });
+  });
   it('"Già pagata" crea la voce già spuntata e il residuo scala comunque', () => {
     withBalance();
     const { getByLabelText, getByText, container } = render(<Mese />);

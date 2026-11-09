@@ -5,7 +5,7 @@ import { addDays, endOfMonth, monthLabel, todayLocal } from '../domain/days';
 import { buildItems } from '../domain/items';
 import { formatEuro, parseEuro } from '../domain/money';
 import type { AppData, Day, Item, Kind } from '../domain/types';
-import { addBalance, addOneOff, data, deleteOneOff, paidStamp, setItemAmount, setPaid, setSkipped, updateOneOff } from '../state/store';
+import { addBalance, addOneOff, data, deleteOneOff, paidStamp, setEarly, setItemAmount, setPaid, setSkipped, updateOneOff } from '../state/store';
 import { backupDue } from '../storage/backup';
 import { screen } from './Nav';
 
@@ -43,11 +43,16 @@ function BalanceForm({ label }: { label: string }) {
 }
 
 function ItemRow({ item, arretrato }: { item: Item; arretrato?: boolean }) {
+  const [choosing, setChoosing] = useState(false);
+  const early = !!item.autoDebit && !arretrato && item.day > todayLocal();
+  const arrived = item.kind === 'income' ? 'Già arrivata' : 'Già addebitata';
   const fullDate = item.day.split('-').reverse().join('/');
   const label = arretrato ? `${item.name} ${fullDate}` : item.name;
   return (
     <li class={`item dated ${arretrato ? 'late' : ''} ${item.kind} ${item.paid ? 'done' : ''} ${item.skipped ? 'skipped' : ''}`}>
-      {item.autoDebit ? (
+      {item.autoDebit && item.paid && early ? (
+        <span class="auto-mark" role="img" aria-label={item.kind === 'income' ? 'Incassata' : 'Pagata'}>✓</span>
+      ) : item.autoDebit ? (
         <span class="auto-mark" aria-hidden="true">↻</span>
       ) : item.oneOffId && item.paid ? (
         <span class="auto-mark" role="img" aria-label={item.kind === 'income' ? 'Incassata' : 'Pagata'}>✓</span>
@@ -80,7 +85,21 @@ function ItemRow({ item, arretrato }: { item: Item; arretrato?: boolean }) {
           }}
         />
       )}
-      {item.oneOffId ? (
+      {early ? (
+        <div class="actions">
+          {item.paid ? (
+            <button class="link" aria-label={`Annulla arrivo: ${label}`} onClick={() => void setPaid(item, false)}>Annulla arrivo</button>
+          ) : choosing ? (
+            <>
+              <button onClick={() => { setChoosing(false); void setEarly(item, true); }}>Già nel mio saldo</button>
+              <button onClick={() => { setChoosing(false); void setEarly(item, false); }}>Non ancora nel saldo</button>
+              <button class="link" onClick={() => setChoosing(false)}>Annulla</button>
+            </>
+          ) : (
+            <button class="link" aria-label={`${arrived}: ${label}`} onClick={() => setChoosing(true)}>{arrived}</button>
+          )}
+        </div>
+      ) : item.oneOffId ? (
         <div class="actions">
           <button class="link" aria-label={`Modifica: ${item.name}`} onClick={() => (editingOneOff.value = item.oneOffId as string)}>Modifica</button>
           <button class="link danger" aria-label={`Elimina: ${item.name}`}

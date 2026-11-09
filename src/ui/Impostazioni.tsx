@@ -89,6 +89,22 @@ export function Impostazioni() {
                 if (v >= 1 && v <= 28) void mutate((d) => ({ ...d, settings: { ...d.settings, payDay: v } }));
               }} /></label>
         </div>
+        <div class="row">
+          <label class="field">Regola dello stipendio (facoltativa)
+            <select aria-label="Regola dello stipendio" value={s.salaryRuleId ?? ''}
+              onChange={(e) => {
+                const v = e.currentTarget.value;
+                void mutate((d) => {
+                  const { salaryRuleId: _drop, ...rest } = d.settings;
+                  return { ...d, settings: v ? { ...rest, salaryRuleId: v } : rest };
+                });
+              }}>
+              <option value="">Nessuna: uso il giorno di riferimento</option>
+              {data.value.rules.filter((r) => r.kind === 'income' && r.active).map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </select>
+          </label>
+        </div>
+        <p class="muted">Se scegli la regola dello stipendio, il riferimento di "Usabile" è la sua prossima data non ancora arrivata: se lo stipendio arriva in anticipo, passa subito al mese dopo.</p>
         <p class="muted">"Usabile" è quanto hai sul conto meno le uscite non pagate prima di questo giorno: dopo quella data arrivano nuovi soldi.</p>
       </section>
 

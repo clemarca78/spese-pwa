@@ -106,6 +106,30 @@ describe('residual: ordine tra saldo e pagamento nello stesso giorno', () => {
   });
 });
 
+describe('regola dello stipendio come riferimento', () => {
+  const stip = () => mkRule({ id: 'stip', name: 'Stipendio', kind: 'income', amount: 200000, rrule: 'FREQ=MONTHLY;BYMONTHDAY=10', autoDebit: true });
+  it('il riferimento è la prossima occorrenza non ancora arrivata della regola scelta', () => {
+    const d = withBalance();
+    d.rules = [stip()];
+    d.settings.salaryRuleId = 'stip';
+    expect(available(d, '2026-11-09', 28)?.upTo).toBe('2026-11-10'); // il giorno impostato (28) non conta
+  });
+  it('se lo stipendio è arrivato in anticipo il riferimento passa al mese dopo', () => {
+    const d = withBalance();
+    d.rules = [stip()];
+    d.settings.salaryRuleId = 'stip';
+    d.overrides = [{ ruleId: 'stip', day: '2026-11-10', paid: true, paidOn: '2026-11-09', paidAt: '2026-11-09T08:00:00.000Z' }];
+    expect(available(d, '2026-11-09', 28)?.upTo).toBe('2026-12-10');
+  });
+  it('senza regola scelta o con una regola inesistente vale il giorno impostato', () => {
+    const d = withBalance();
+    d.rules = [stip()];
+    expect(available(d, '2026-11-09', 28)?.upTo).toBe('2026-11-28');
+    d.settings.salaryRuleId = 'non-esiste';
+    expect(available(d, '2026-11-09', 28)?.upTo).toBe('2026-11-28');
+  });
+});
+
 describe('addebito automatico nel residuo', () => {
   const tim = () => mkRule({ id: 'tim', name: 'Tim', amount: 2789, rrule: 'FREQ=MONTHLY;BYMONTHDAY=8', autoDebit: true });
   it('scala dal conto alla data di scadenza, senza spuntare', () => {

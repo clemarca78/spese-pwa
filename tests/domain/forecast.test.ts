@@ -72,6 +72,22 @@ describe('firstBelow / biggestDrops', () => {
   });
 });
 
+describe('voci pagate in anticipo', () => {
+  it('una voce già pagata e già nel saldo non pesa di nuovo alla scadenza', () => {
+    const d = base(); // saldo 03/11
+    d.oneOffs = [oo({ kind: 'income', amount: 100000, day: '2026-11-06', paid: true, paidOn: '2026-11-03' })];
+    expect(forecast(d, 4).map((p) => p.balance)).toEqual([100000, 100000, 100000, 100000, 100000]);
+  });
+  it('una voce pagata in anticipo dopo il saldo pesa nel giorno del pagamento, non alla scadenza', () => {
+    const d = base();
+    d.oneOffs = [oo({ kind: 'income', amount: 100000, day: '2026-11-08', paid: true, paidOn: '2026-11-05', paidAt: '2026-11-05T10:00:00.000Z' })];
+    const pts = forecast(d, 6);
+    expect(pts.find((p) => p.day === '2026-11-04')?.balance).toBe(100000);
+    expect(pts.find((p) => p.day === '2026-11-05')?.balance).toBe(200000);
+    expect(pts.find((p) => p.day === '2026-11-08')?.balance).toBe(200000);
+  });
+});
+
 describe('monthlyFlows', () => {
   it('raggruppa entrate e uscite per mese e torna con il grafico', () => {
     const d = base();

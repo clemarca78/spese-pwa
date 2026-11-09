@@ -152,6 +152,7 @@ export function parseImport(text: string): AppData {
   int(st.varieDailyDefault, 'impostazioni');
   if (!Number.isInteger(st.backupReminderDays)) fail('impostazioni incomplete');
   if (st.payDay !== undefined && !(Number.isInteger(st.payDay) && (st.payDay as number) >= 1 && (st.payDay as number) <= 28)) fail('impostazioni: giorno dello stipendio non valido');
+  if (st.salaryRuleId !== undefined && typeof st.salaryRuleId !== 'string') fail('impostazioni: regola dello stipendio non valida');
   if (typeof o.updatedAt !== 'string') fail('updatedAt mancante');
   return o as unknown as AppData;
 }

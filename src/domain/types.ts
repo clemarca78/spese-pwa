@@ -58,6 +58,8 @@ export interface Settings {
   lastBackupAt?: string;
   /** Giorno del mese in cui arriva lo stipendio (1-28, default 10). */
   payDay?: number;
+  /** Regola di entrata dello stipendio: se scelta, il riferimento di "Usabile" è la sua prossima occorrenza non ancora arrivata. */
+  salaryRuleId?: string;
 }
 export interface AppData {
   schemaVersion: 1;

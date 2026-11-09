@@ -55,6 +55,14 @@ export function nextPayDay(today: Day, payDay: number): Day {
   return `${ny}-${String(nm).padStart(2, '0')}-${dd}`;
 }
 
+/** Prossima occorrenza non ancora arrivata della regola dello stipendio scelta nelle impostazioni, se c'è. */
+function salaryHorizon(data: AppData, today: Day): Day | undefined {
+  const id = data.settings.salaryRuleId;
+  const rule = id ? data.rules.find((r) => r.id === id && r.kind === 'income' && r.active) : undefined;
+  if (!rule) return undefined;
+  return buildItems(data, addDays(today, 1), addDays(today, 400), today).find((i) => i.ruleId === rule.id && !i.skipped && !i.paid)?.day;
+}
+
 /**
  * Disponibile da spendere = residuo − tutte le uscite non ancora pagate (ricorrenti e segnate)
  * dopo il saldo e prima del prossimo giorno dello stipendio (quel giorno arrivano i soldi). Le entrate previste non si
@@ -64,7 +72,7 @@ export function available(data: AppData, today: Day, payDay: number): Available 
   const bal = latestBalance(data);
   const res = residual(data, today, today);
   if (!bal || res === null) return null;
-  const upTo = nextPayDay(today, payDay);
+  const upTo = salaryHorizon(data, today) ?? nextPayDay(today, payDay);
   const debits = buildItems(data, addDays(bal.day, 1), addDays(upTo, -1), today).filter((i) => i.kind === 'expense' && !i.paid && !i.skipped);
   return { value: res - debits.reduce((s, i) => s + i.amount, 0), upTo, debits };
 }

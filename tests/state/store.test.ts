@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { todayLocal } from '../../src/domain/days';
 import type { Item } from '../../src/domain/types';
-import { addBalance, addGroup, addOneOff, deleteGroup, moveRuleToGroup, renameGroup, data, deleteOneOff, deleteRule, initStore, mutate, setItemAmount, setPaid, setSkipped, updateOneOff } from '../../src/state/store';
+import { addBalance, addGroup, setEarly, addOneOff, deleteGroup, moveRuleToGroup, renameGroup, data, deleteOneOff, deleteRule, initStore, mutate, setItemAmount, setPaid, setSkipped, updateOneOff } from '../../src/state/store';
 import { emptyData } from '../../src/storage/backup';
 import { openRepo } from '../../src/storage/repo';
 
@@ -118,6 +118,14 @@ describe('store', () => {
     expect(data.value.defaultGroupsSeeded).toBe(true);
     await deleteGroup('g-altre-uscite');
     expect(data.value.groups?.some((g) => g.id === 'g-altre-uscite')).toBe(false);
+  });
+  it('setEarly: arrivata prima della data. Già nel saldo vale la data del saldo, altrimenti il momento di oggi', async () => {
+    await addBalance(5000, '2026-11-03');
+    await setEarly(ruleItem, true);
+    expect(data.value.overrides[0]).toMatchObject({ ruleId: 'r1', day: '2026-11-24', paid: true, paidOn: '2026-11-03' });
+    expect('paidAt' in data.value.overrides[0]).toBe(false);
+    await setEarly(ruleItem, false);
+    expect(data.value.overrides[0]).toMatchObject({ paid: true, paidOn: todayLocal(), paidAt: expect.any(String) });
   });
   it('setItemAmount crea un override con importo reale', async () => {
     await setItemAmount(ruleItem, 12345);

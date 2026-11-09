@@ -17,7 +17,15 @@ export function plannedItems(data: AppData, horizonDays: number): PlannedItem[] 
   const firstDay = addDays(bal.day, 1);
   const out: PlannedItem[] = [];
   for (const item of buildItems(data, firstDay, addDays(bal.day, horizonDays))) {
-    if (!item.skipped) out.push({ day: item.day, item });
+    if (item.skipped) continue;
+    if (item.paid) {
+      // già nel saldo: non pesa di nuovo; pagata dopo il saldo, pesa nel giorno del pagamento (anche in anticipo)
+      if (!paidAfterBalance(item, bal)) continue;
+      const when = item.paidOn ?? item.day;
+      out.push({ day: when < firstDay ? firstDay : when, item });
+      continue;
+    }
+    out.push({ day: item.day, item });
   }
   // voci con scadenza passata ma pagate dopo il saldo: il saldo non le contiene, pesano sul primo giorno futuro
   for (const item of buildItems(data, addDays(bal.day, -366), bal.day)) {
