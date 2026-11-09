@@ -135,3 +135,7 @@ label.legend-item:has(input:focus-visible) { outline: 2px solid var(--accent); o
 .guide ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 8px; font-size: .9rem; }
 .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: 0 0 10px; }
 .item .actions { flex-wrap: wrap; align-items: center; row-gap: 6px; }
+.chart-end { font-size: 10px; font-weight: 600; fill: var(--accent); stroke: var(--card); stroke-width: 3px; paint-order: stroke; }
+.chart-end.tone-in { fill: var(--pos); }
+.chart-end.tone-out { fill: var(--neg); }
+.legend-val { font-weight: 600; font-variant-numeric: tabular-nums; }

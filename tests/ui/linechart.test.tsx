@@ -28,6 +28,16 @@ describe('LineChart', () => {
     expect(container.querySelector('path.tone-in')).not.toBeNull();
     expect(container.querySelector('path.tone-out')).not.toBeNull();
   });
+  it('mostra il valore finale di ogni linea, senza sovrapporre le etichette', () => {
+    const { container } = render(
+      <LineChart series={[{ label: 'Saldo', points: pts([100000, 99000]) }, { label: 'Entrate', points: pts([0, 99500]), tone: 'in' }, { label: 'Uscite', points: pts([0, 100500]), tone: 'out' }]} />,
+    );
+    const labels = Array.from(container.querySelectorAll('[data-testid="end-label"]'));
+    expect(labels.map((l) => (l.textContent ?? '').replace(/ /g, ' '))).toEqual(['990 €', '995 €', '1.005 €']);
+    const ys = labels.map((l) => Number(l.getAttribute('y'))).sort((a, b) => a - b);
+    expect(ys[1] - ys[0]).toBeGreaterThanOrEqual(11);
+    expect(ys[2] - ys[1]).toBeGreaterThanOrEqual(11);
+  });
   it('espone il numero di punti', () => {
     const { container } = render(<LineChart series={[{ label: 'Base', points: pts([1, 2, 3, 4]) }]} />);
     expect(container.querySelector('svg')?.getAttribute('data-count')).toBe('4');

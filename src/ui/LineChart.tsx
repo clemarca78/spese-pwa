@@ -30,6 +30,14 @@ export function LineChart({ series, threshold = 0 }: { series: Series[]; thresho
   const ty = y(threshold);
   const first = series[0]?.points[0];
   const last = series[0]?.points.at(-1);
+  // valore finale di ogni linea, con le etichette distanziate di almeno 11 px
+  const MIN_GAP = 11;
+  const ends = series
+    .map((s, i) => ({ i, tone: s.tone, value: s.points.at(-1)?.balance, y: 0 }))
+    .filter((e): e is { i: number; tone: Series['tone']; value: number; y: number } => e.value !== undefined)
+    .map((e) => ({ ...e, y: y(e.value) - 5 }))
+    .sort((a, b) => a.y - b.y);
+  for (let k = 1; k < ends.length; k++) if (ends[k].y - ends[k - 1].y < MIN_GAP) ends[k].y = ends[k - 1].y + MIN_GAP;
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} class="chart" role="img" data-count={series[0]?.points.length ?? 0}
@@ -51,8 +59,10 @@ export function LineChart({ series, threshold = 0 }: { series: Series[]; thresho
       <text x={PAD.l} y={Math.max(PAD.t + 8, ty - 3)} class="chart-label">0</text>
       <text x={PAD.l} y={H - 6} class="chart-label">{first ? fmtDay(first.day) : ''}</text>
       <text x={W - PAD.r} y={H - 6} text-anchor="end" class="chart-label">{last ? fmtDay(last.day) : ''}</text>
-      {all.length ? <text x={W - PAD.r} y={PAD.t - 2} text-anchor="end" class="chart-label">{compact(hi)}</text> : null}
-      {all.length ? <text x={W - PAD.r} y={H - PAD.b - 4} text-anchor="end" class="chart-label">{compact(lo)}</text> : null}
+      {[...ends].sort((a, b) => a.i - b.i).map((e) => (
+        <text key={e.i} data-testid="end-label" x={W - PAD.r} y={e.y} text-anchor="end"
+          class={`chart-end s${e.i}${e.tone ? ` tone-${e.tone}` : ''}`}>{compact(e.value)}</text>
+      ))}
     </svg>
   );
 }

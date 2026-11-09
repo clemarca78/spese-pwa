@@ -35,6 +35,10 @@ describe('Previsione', () => {
     expect(lines()).toBe(2);
     fireEvent.click(getByLabelText('Mostra entrate'));
     expect(lines()).toBe(1);
+    // ripristina (le preferenze sono condivise tra i test)
+    fireEvent.click(getByLabelText('Mostra uscite'));
+    fireEvent.click(getByLabelText('Mostra entrate'));
+    expect(lines()).toBe(3);
   });
   it('l\'interruttore scrive settings.varieEnabled', () => {
     const { getByLabelText } = render(<Previsione />);
@@ -92,5 +96,21 @@ describe('Previsione: guida alla lettura', () => {
     const { getByLabelText, container } = render(<Previsione />);
     expect(getByLabelText('Spese varie stimate')).toBeTruthy();
     expect(container.querySelector('.varie-hint')).not.toBeNull();
+  });
+});
+
+describe('Previsione: valori finali', () => {
+  it('le pillole mostrano il valore finale di saldo, entrate e uscite', () => {
+    const d = emptyData();
+    d.balances = [{ value: 100000, day: '2026-11-03' }];
+    d.oneOffs = [
+      { id: 'a', name: 'bolletta', kind: 'expense', amount: 30000, day: '2026-11-05', paid: false },
+      { id: 'b', name: 'rimborso', kind: 'income', amount: 50000, day: '2026-11-10', paid: false },
+    ];
+    data.value = d;
+    const { container } = render(<Previsione />);
+    const vals = Array.from(container.querySelectorAll('.legend-item .legend-val')).map((e) => (e.textContent ?? '').replace(/ /g, ' '));
+    expect(vals).toEqual(['1.200,00 €', '500,00 €', '300,00 €']);
+    expect(container.querySelectorAll('[data-testid="end-label"]')).toHaveLength(3);
   });
 });

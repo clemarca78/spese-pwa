@@ -50,14 +50,14 @@ export function Previsione() {
           ]}
         />
         <div class="legend" role="group" aria-label="Linee del grafico">
-          <span class="legend-item fixed"><span class="dot s-saldo" /> Saldo previsto</span>
+          <span class="legend-item fixed"><span class="dot s-saldo" /> Saldo previsto <span class="legend-val">{formatEuro(points.at(-1)?.balance ?? 0)}</span></span>
           <label class="legend-item">
             <input type="checkbox" aria-label="Mostra entrate" checked={showIncome.value} onChange={(e) => (showIncome.value = e.currentTarget.checked)} />
-            <span class="dot s-in" /> Entrate cumulate
+            <span class="dot s-in" /> Entrate cumulate <span class="legend-val">{formatEuro(cum.income.at(-1)?.balance ?? 0)}</span>
           </label>
           <label class="legend-item">
             <input type="checkbox" aria-label="Mostra uscite" checked={showExpense.value} onChange={(e) => (showExpense.value = e.currentTarget.checked)} />
-            <span class="dot s-out" /> Uscite cumulate
+            <span class="dot s-out" /> Uscite cumulate <span class="legend-val">{formatEuro(cum.expense.at(-1)?.balance ?? 0)}</span>
           </label>
         </div>
         <label class="check varie">
@@ -77,7 +77,7 @@ export function Previsione() {
             <li><strong>Linea verde: entrate cumulate.</strong> Quanto è entrato in totale dal giorno del saldo. Sale a gradini nei giorni di accredito.</li>
             <li><strong>Linea rossa: uscite cumulate.</strong> Quanto è uscito in totale dal giorno del saldo, comprese le spese varie se le attivi. Sale a gradini nei giorni di addebito.</li>
             <li><strong>Come tornano i conti:</strong> saldo = saldo di partenza + entrate cumulate − uscite cumulate.</li>
-            <li><strong>I due numeri a destra</strong> sono il valore più alto e più basso che il grafico mostra. Con le linee cumulate la scala può allargarsi: nascondile con le pillole sopra se vuoi vedere meglio il saldo.</li>
+            <li><strong>I numeri a destra</strong> sono il valore finale di ogni linea, dello stesso colore: dove arriva il saldo, quanto è entrato e quanto è uscito in totale. Gli stessi valori sono scritti nelle pillole sotto il grafico. Con le linee cumulate la scala può allargarsi: nascondile toccando le pillole se vuoi vedere meglio il saldo.</li>
             <li><strong>Sotto il grafico</strong> trovi mese per mese entrate, uscite e differenza (tocca un mese per vedere le voci) e i tre giorni critici, cioè quelli con il calo maggiore.</li>
           </ul>
         </details>
