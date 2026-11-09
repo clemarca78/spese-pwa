@@ -1,5 +1,5 @@
 import { signal } from '@preact/signals';
-import { useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { available, latestBalance, residual } from '../domain/calc';
 import { addDays, endOfMonth, monthLabel, todayLocal } from '../domain/days';
 import { buildItems } from '../domain/items';
@@ -137,8 +137,17 @@ function AddOneOff() {
   const [kind, setKind] = useState<Kind>(editing?.kind ?? 'expense');
   const [paid, setAlreadyPaid] = useState(editing?.paid ?? false);
   const cents = parseEuro(amount);
+  const formRef = useRef<HTMLFormElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+  // modificando una voce il modulo sta in fondo alla pagina: lo porto in vista e metto il cursore sul nome
+  useEffect(() => {
+    if (!editing) return;
+    formRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    nameRef.current?.focus();
+  }, []);
   return (
     <form
+      ref={formRef}
       class="card"
       onSubmit={(e) => {
         e.preventDefault();
@@ -158,7 +167,7 @@ function AddOneOff() {
     >
       <h3>{editing ? 'Modifica la voce' : 'Aggiungi una voce'}</h3>
       <div class="row">
-        <input placeholder="Nome" aria-label="Nome voce" value={name} onInput={(e) => setName(e.currentTarget.value)} />
+        <input ref={nameRef} placeholder="Nome" aria-label="Nome voce" value={name} onInput={(e) => setName(e.currentTarget.value)} />
         <input inputMode="decimal" placeholder="Importo" aria-label="Importo voce" value={amount} onInput={(e) => setAmount(e.currentTarget.value)} />
       </div>
       <div class="row">

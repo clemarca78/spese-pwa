@@ -315,6 +315,24 @@ describe('Mese', () => {
     expect(queryByLabelText('Incassata: rimborso')).toBeNull(); // già incassata: niente casella
     expect(getByLabelText('Incassata')).toBeTruthy(); // solo il segno ✓
   });
+  it('Modifica porta il modulo in vista e mette il cursore sul nome (anche per una voce già pagata)', () => {
+    withBalance();
+    const spy = vi.fn();
+    window.HTMLElement.prototype.scrollIntoView = spy;
+    const { getByLabelText, getByText } = render(<Mese />);
+    fireEvent.input(getByLabelText('Nome voce'), { target: { value: 'farmacia' } });
+    fireEvent.input(getByLabelText('Importo voce'), { target: { value: '12,00' } });
+    fireEvent.click(getByLabelText('Già pagata'));
+    fireEvent.click(getByText('Aggiungi'));
+    spy.mockClear();
+    fireEvent.click(getByLabelText('Modifica: farmacia'));
+    expect(spy).toHaveBeenCalled();
+    expect(document.activeElement).toBe(getByLabelText('Nome voce'));
+    expect((getByLabelText('Già pagata') as HTMLInputElement).checked).toBe(true);
+    fireEvent.input(getByLabelText('Importo voce'), { target: { value: '15,00' } });
+    fireEvent.click(getByText('Salva modifiche'));
+    expect(data.value.oneOffs.find((o) => o.name === 'farmacia')).toMatchObject({ amount: 1500, paid: true });
+  });
   it('modifica una voce aggiunta a mano', () => {
     withBalance();
     const { getByLabelText, getByText } = render(<Mese />);
