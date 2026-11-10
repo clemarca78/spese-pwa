@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { todayLocal } from '../../src/domain/days';
 import type { Item } from '../../src/domain/types';
-import { addBalance, addGroup, setEarly, addOneOff, deleteGroup, moveRuleToGroup, renameGroup, data, deleteOneOff, deleteRule, initStore, mutate, setItemAmount, setPaid, setSkipped, updateOneOff } from '../../src/state/store';
+import { addBalance, addCategory, addGroup, deleteCategory, renameCategory, setEarly, addOneOff, deleteGroup, moveRuleToGroup, renameGroup, data, deleteOneOff, deleteRule, initStore, mutate, setItemAmount, setPaid, setSkipped, updateOneOff } from '../../src/state/store';
 import { emptyData } from '../../src/storage/backup';
 import { openRepo } from '../../src/storage/repo';
 
@@ -126,6 +126,27 @@ describe('store', () => {
     expect('paidAt' in data.value.overrides[0]).toBe(false);
     await setEarly(ruleItem, false);
     expect(data.value.overrides[0]).toMatchObject({ paid: true, paidOn: todayLocal(), paidAt: expect.any(String) });
+  });
+  it('le categorie standard esistono dall avvio, se ne aggiungono e rinominano', async () => {
+    expect(data.value.categories?.some((c) => c.name === 'Carburante')).toBe(true);
+    await addCategory('Hobby');
+    const id = (data.value.categories ?? []).find((c) => c.name === 'Hobby')?.id as string;
+    expect(id).toBeTruthy();
+    await renameCategory(id, 'Hobby e sport');
+    expect(data.value.categories?.find((c) => c.id === id)?.name).toBe('Hobby e sport');
+  });
+  it('eliminando una categoria, regole e voci restano senza categoria', async () => {
+    await addCategory('Hobby');
+    const id = (data.value.categories ?? []).find((c) => c.name === 'Hobby')?.id as string;
+    await mutate((d) => ({
+      ...d,
+      rules: [{ id: 'r1', name: 'x', kind: 'expense', amount: 1, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=8', start: '2026-01-01', active: true, categoryId: id }],
+      oneOffs: [{ id: 'o1', name: 'y', kind: 'expense', amount: 1, day: '2026-11-10', paid: false, categoryId: id }],
+    }));
+    await deleteCategory(id);
+    expect((data.value.categories ?? []).some((c) => c.id === id)).toBe(false);
+    expect('categoryId' in data.value.rules[0]).toBe(false);
+    expect('categoryId' in data.value.oneOffs[0]).toBe(false);
   });
   it('setItemAmount crea un override con importo reale', async () => {
     await setItemAmount(ruleItem, 12345);

@@ -44,6 +44,7 @@ export function Regole() {
   const [error, setError] = useState<string | null>(null);
   const [groupId, setGroupId] = useState('');
   const [groupTouched, setGroupTouched] = useState(false);
+  const [categoryId, setCategoryId] = useState('');
   const [newGroup, setNewGroup] = useState('');
   const [groupError, setGroupError] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -61,13 +62,13 @@ export function Regole() {
   })();
 
   function reset() {
-    setEditingId(null); setName(''); setAmount(''); setVariable(false); setAutoDebit(false); setPerMonth(false); setMonthVals({}); setKind('expense'); setGroupId(''); setGroupTouched(false);
+    setEditingId(null); setName(''); setAmount(''); setVariable(false); setAutoDebit(false); setPerMonth(false); setMonthVals({}); setKind('expense'); setGroupId(''); setGroupTouched(false); setCategoryId('');
     setSpec(EMPTY_SPEC); setStart(todayLocal()); setEnd(''); setError(null); setView('list');
   }
 
   function edit(r: Rule) {
     setEditingId(r.id); setName(r.name); setKind(r.kind);
-    setAmount((r.amount / 100).toFixed(2).replace('.', ',')); setVariable(r.variable); setAutoDebit(r.autoDebit ?? false); setGroupId(r.groupId ?? ''); setGroupTouched(true);
+    setAmount((r.amount / 100).toFixed(2).replace('.', ',')); setVariable(r.variable); setAutoDebit(r.autoDebit ?? false); setGroupId(r.groupId ?? ''); setGroupTouched(true); setCategoryId(r.categoryId ?? '');
     setPerMonth(!!r.monthAmounts);
     setMonthVals(Object.fromEntries(Object.entries(r.monthAmounts ?? {}).map(([m, c]) => [Number(m), (c / 100).toFixed(2).replace('.', ',')])));
     setSpec(parseRrule(r.rrule)); setStart(r.start); setEnd(r.end ?? ''); setError(null); setView('form');
@@ -92,6 +93,7 @@ export function Regole() {
       rrule: buildRrule(spec), start, ...(end ? { end } : {}), active: true,
       ...(autoDebit ? { autoDebit: true } : {}),
       ...(monthAmounts ? { monthAmounts } : {}),
+      ...(categoryId && (data.value.categories ?? []).some((c) => c.id === categoryId) ? { categoryId } : {}),
       ...(effectiveGroup && known.has(effectiveGroup) ? { groupId: effectiveGroup } : {}),
     };
     void mutate((d) => ({
@@ -211,7 +213,7 @@ export function Regole() {
                   <span class="day">{r.kind === 'income' ? '+' : '−'}</span>
                   <span class="name">
                     {r.name}
-                    <small> {r.monthAmounts ? 'importi per mese' : formatEuro(r.amount)}{r.variable ? ' (variabile)' : ''}{r.autoDebit ? ` · ${r.kind === 'income' ? 'accredito' : 'addebito'} automatico` : ''}{nextDates(r, 1)[0] ? ` · prossima ${fmtDay(nextDates(r, 1)[0])}` : ''}</small>
+                    <small> {r.monthAmounts ? 'importi per mese' : formatEuro(r.amount)}{r.variable ? ' (variabile)' : ''}{r.autoDebit ? ` · ${r.kind === 'income' ? 'accredito' : 'addebito'} automatico` : ''}{r.categoryId && (data.value.categories ?? []).find((c) => c.id === r.categoryId) ? ` · ${(data.value.categories ?? []).find((c) => c.id === r.categoryId)?.name}` : ''}{nextDates(r, 1)[0] ? ` · prossima ${fmtDay(nextDates(r, 1)[0])}` : ''}</small>
                   </span>
                   <span class="actions">
                     <select class="move" aria-label={`Gruppo di ${r.name}`} value={r.groupId && known.has(r.groupId) ? r.groupId : ''}
@@ -261,6 +263,14 @@ export function Regole() {
             <option value="income">Entrata</option>
           </select>
           <label class="check"><input type="checkbox" checked={variable} onChange={(e) => setVariable(e.currentTarget.checked)} /> Importo variabile (stima)</label>
+        </div>
+        <div class="row">
+          <label class="field">Categoria
+            <select aria-label="Categoria" value={categoryId} onChange={(e) => setCategoryId(e.currentTarget.value)}>
+              <option value="">Senza categoria</option>
+              {(data.value.categories ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </label>
         </div>
         <div class="row">
           <label class="field">Gruppo

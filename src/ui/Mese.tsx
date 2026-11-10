@@ -2,6 +2,7 @@ import { signal } from '@preact/signals';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { available, latestBalance, residual } from '../domain/calc';
 import { addDays, endOfMonth, monthLabel, todayLocal } from '../domain/days';
+import { totalsByCategory } from '../domain/categories';
 import { buildItems } from '../domain/items';
 import { formatEuro, parseEuro } from '../domain/money';
 import type { AppData, Day, Item, Kind } from '../domain/types';
@@ -19,6 +20,10 @@ const passes: Record<Filtro, (i: Item) => boolean> = {
   entrate: (i) => i.kind === 'income',
 };
 export const filtro = signal<Filtro>('tutte');
+/** '' = tutte le categorie, '__none' = senza categoria, altrimenti l'id della categoria */
+export const categoriaFiltro = signal('');
+const periodoTotali = signal<'mese' | 'anno'>('mese');
+const catName = (id: string | undefined): string | undefined => (id ? (data.value.categories ?? []).find((c) => c.id === id)?.name : undefined);
 const shortDate = (d: string) => `${d.slice(8)}/${d.slice(5, 7)}`;
 /** id della voce una tantum in modifica (null = modulo di aggiunta) */
 export const editingOneOff = signal<string | null>(null);
@@ -69,6 +74,7 @@ function ItemRow({ item, arretrato }: { item: Item; arretrato?: boolean }) {
         {item.name}
         {item.estimated ? <small> stima</small> : null}
         {item.autoDebit ? <small> {item.kind === 'income' ? 'accredito' : 'addebito'} automatico</small> : null}
+        {catName(item.categoryId) ? <small class="cat"> · <span>{catName(item.categoryId)}</span></small> : null}
       </span>
       {item.locked ? (
         <span class="amount static">{plain(item.amount)}</span>
@@ -136,6 +142,7 @@ function AddOneOff() {
   const [day, setDay] = useState(editing?.day ?? todayLocal());
   const [kind, setKind] = useState<Kind>(editing?.kind ?? 'expense');
   const [paid, setAlreadyPaid] = useState(editing?.paid ?? false);
+  const [categoryId, setCategoryId] = useState(editing?.categoryId ?? '');
   const cents = parseEuro(amount);
   const formRef = useRef<HTMLFormElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -154,11 +161,12 @@ function AddOneOff() {
         if (!name.trim() || cents === null) return;
         if (editing) {
           const stamp = paid === editing.paid ? {} : paid ? paidStamp() : { paidOn: undefined, paidAt: undefined };
-          void updateOneOff(editing.id, { name: name.trim(), kind, amount: cents, day, paid, ...stamp });
+          void updateOneOff(editing.id, { name: name.trim(), kind, amount: cents, day, paid, categoryId: categoryId || undefined, ...stamp });
           editingOneOff.value = null;
           return;
         }
-        void addOneOff({ name: name.trim(), kind, amount: cents, day, paid, ...(paid ? paidStamp() : {}) }).then(() => {
+        void addOneOff({ name: name.trim(), kind, amount: cents, day, paid, ...(categoryId ? { categoryId } : {}), ...(paid ? paidStamp() : {}) }).then(() => {
+          setCategoryId('');
           setAlreadyPaid(false);
           setName('');
           setAmount('');
@@ -169,6 +177,14 @@ function AddOneOff() {
       <div class="row">
         <input ref={nameRef} placeholder="Nome" aria-label="Nome voce" value={name} onInput={(e) => setName(e.currentTarget.value)} />
         <input inputMode="decimal" placeholder="Importo" aria-label="Importo voce" value={amount} onInput={(e) => setAmount(e.currentTarget.value)} />
+      </div>
+      <div class="row">
+        <label class="field">Categoria
+          <select aria-label="Categoria voce" value={categoryId} onChange={(e) => setCategoryId(e.currentTarget.value)}>
+            <option value="">Senza categoria</option>
+            {(data.value.categories ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </label>
       </div>
       <div class="row">
         <input type="date" aria-label="Data voce" value={day} onInput={(e) => setDay(e.currentTarget.value)} />
@@ -192,11 +208,15 @@ export function Mese() {
   const today = todayLocal();
   // le voci automatiche già passate sono già nel conto: non servono più nell'elenco
   const all = buildItems(d, start, end).filter((i) => !(i.autoDebit && i.paid && i.day <= today));
-  const items = all.filter(passes[filtro.value]);
+  const byCategory = (i: Item) => !categoriaFiltro.value || (categoriaFiltro.value === '__none' ? !i.categoryId : i.categoryId === categoriaFiltro.value);
+  const items = all.filter(passes[filtro.value]).filter(byCategory);
   const res = residual(d, today, today);
   const av = available(d, today, d.settings.payDay ?? 10);
   const debitsTotal = av ? av.debits.reduce((s, i) => s + i.amount, 0) : 0;
-  const late = viewMonth.value === today.slice(0, 7) && (filtro.value === 'tutte' || filtro.value === 'da-pagare') ? arretrati(d, start) : [];
+  const late = viewMonth.value === today.slice(0, 7) && (filtro.value === 'tutte' || filtro.value === 'da-pagare') ? arretrati(d, start).filter(byCategory) : [];
+  const year = viewMonth.value.slice(0, 4);
+  const totals = totalsByCategory(d, periodoTotali.value === 'mese' ? start : `${year}-01-01`, periodoTotali.value === 'mese' ? end : `${year}-12-31`);
+  const grand = totals.reduce((t, x) => ({ income: t.income + x.income, expense: t.expense + x.expense }), { income: 0, expense: 0 });
   const showBackup = backupDue(d.settings, new Date().toISOString());
 
   return (
@@ -250,6 +270,13 @@ export function Mese() {
           <button key={v} class={`chip ${filtro.value === v ? 'active' : ''}`} aria-pressed={filtro.value === v} onClick={() => (filtro.value = v)}>{l}</button>
         ))}
       </div>
+      <label class="field cat-filter">Categoria
+        <select aria-label="Filtra per categoria" value={categoriaFiltro.value} onChange={(e) => (categoriaFiltro.value = e.currentTarget.value)}>
+          <option value="">Tutte le categorie</option>
+          <option value="__none">Senza categoria</option>
+          {(d.categories ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+      </label>
 
       {late.length > 0 ? (
         <section class="late-section">
@@ -266,6 +293,33 @@ export function Mese() {
         ))}
         {items.length === 0 ? <li class="empty">{all.length === 0 ? 'Nessuna voce in questo mese.' : 'Nessuna voce con questo filtro.'}</li> : null}
       </ul>
+
+      <details class="card cat-totals">
+        <summary>Totali per categoria</summary>
+        <div class="row" role="group" aria-label="Periodo dei totali">
+          <button class={`chip ${periodoTotali.value === 'mese' ? 'active' : ''}`} aria-pressed={periodoTotali.value === 'mese'} onClick={() => (periodoTotali.value = 'mese')}>Mese</button>
+          <button class={`chip ${periodoTotali.value === 'anno' ? 'active' : ''}`} aria-pressed={periodoTotali.value === 'anno'} onClick={() => (periodoTotali.value = 'anno')}>Anno</button>
+        </div>
+        <p class="muted">{periodoTotali.value === 'mese' ? monthLabel(viewMonth.value) : `Anno ${year}`}: comprende anche le voci previste, pagate o no.</p>
+        <ul class="items">
+          {totals.map((t) => (
+            <li class="drop cat-row" key={t.categoryId ?? '__none'} data-testid="cat-row">
+              <span>{catName(t.categoryId) ?? 'Senza categoria'}</span>
+              <span class="cat-nums">
+                {t.income > 0 ? <span class="pos">+{formatEuro(t.income)}</span> : null}
+                {t.expense > 0 ? <span class="neg">−{formatEuro(t.expense)}</span> : null}
+              </span>
+            </li>
+          ))}
+          {totals.length === 0 ? <li class="empty">Nessuna voce nel periodo.</li> : null}
+        </ul>
+        {totals.length > 0 ? (
+          <div class="flow-total">
+            <span class="pos">Entrate {formatEuro(grand.income)}</span>
+            <span class="neg">Uscite {formatEuro(grand.expense)}</span>
+          </div>
+        ) : null}
+      </details>
 
       <AddOneOff key={editingOneOff.value ?? 'new'} />
     </main>

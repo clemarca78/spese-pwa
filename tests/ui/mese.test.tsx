@@ -333,6 +333,68 @@ describe('Mese', () => {
     fireEvent.click(getByText('Salva modifiche'));
     expect(data.value.oneOffs.find((o) => o.name === 'farmacia')).toMatchObject({ amount: 1500, paid: true });
   });
+  describe('categorie', () => {
+    function withCats() {
+      withBalance();
+      data.value = {
+        ...data.value,
+        categories: [{ id: 'c-casa', name: 'Casa' }, { id: 'c-carb', name: 'Carburante' }, { id: 'c-stip', name: 'Stipendio' }],
+        oneOffs: [
+          { id: 'o1', name: 'bolletta', kind: 'expense', amount: 5000, day: '2026-11-10', paid: false, categoryId: 'c-casa' },
+          { id: 'o2', name: 'benzina', kind: 'expense', amount: 4000, day: '2026-11-12', paid: false, categoryId: 'c-carb' },
+          { id: 'o3', name: 'varie', kind: 'expense', amount: 700, day: '2026-11-13', paid: false },
+          { id: 'o4', name: 'extra', kind: 'income', amount: 9000, day: '2026-11-14', paid: false, categoryId: 'c-stip' },
+          { id: 'o5', name: 'vecchia', kind: 'expense', amount: 2500, day: '2026-03-02', paid: true, categoryId: 'c-casa' },
+        ],
+      };
+    }
+    it('si aggiunge una voce con la categoria scelta e la riga la mostra', () => {
+      withCats();
+      const { getByLabelText, getByText, getAllByText } = render(<Mese />);
+      fireEvent.input(getByLabelText('Nome voce'), { target: { value: 'pieno' } });
+      fireEvent.input(getByLabelText('Importo voce'), { target: { value: '40,00' } });
+      fireEvent.change(getByLabelText('Categoria voce'), { target: { value: 'c-carb' } });
+      fireEvent.click(getByText('Aggiungi'));
+      expect(data.value.oneOffs.find((o) => o.name === 'pieno')?.categoryId).toBe('c-carb');
+      expect(getAllByText('Carburante').length).toBeGreaterThan(0);
+    });
+    it('Modifica riapre la categoria e permette di toglierla', () => {
+      withCats();
+      const { getByLabelText, getByText } = render(<Mese />);
+      fireEvent.click(getByLabelText('Modifica: bolletta'));
+      expect((getByLabelText('Categoria voce') as HTMLSelectElement).value).toBe('c-casa');
+      fireEvent.change(getByLabelText('Categoria voce'), { target: { value: '' } });
+      fireEvent.click(getByText('Salva modifiche'));
+      expect(data.value.oneOffs.find((o) => o.id === 'o1')?.categoryId).toBeUndefined();
+    });
+    it('il filtro per categoria mostra solo quelle voci, anche Senza categoria', () => {
+      withCats();
+      const { getByLabelText, queryByText } = render(<Mese />);
+      fireEvent.change(getByLabelText('Filtra per categoria'), { target: { value: 'c-carb' } });
+      expect(queryByText('benzina')).toBeTruthy();
+      expect(queryByText('bolletta')).toBeNull();
+      fireEvent.change(getByLabelText('Filtra per categoria'), { target: { value: '__none' } });
+      expect(queryByText('varie')).toBeTruthy();
+      expect(queryByText('benzina')).toBeNull();
+      fireEvent.change(getByLabelText('Filtra per categoria'), { target: { value: '' } });
+      expect(queryByText('benzina')).toBeTruthy();
+    });
+    it('totali per categoria del mese e dell anno', () => {
+      withCats();
+      const { getByText, getAllByTestId } = render(<Mese />);
+      const rows = () => getAllByTestId('cat-row').map((r) => (r.textContent ?? '').replace(/\u00a0/g, ' '));
+      // novembre 2026: Casa 50, Carburante 40, Senza categoria 7, Stipendio entrata 90
+      expect(rows()[0]).toContain('Casa');
+      expect(rows()[0]).toContain('50,00 €');
+      expect(rows().find((r) => r.includes('Carburante'))).toContain('40,00 €');
+      expect(rows().find((r) => r.includes('Senza categoria'))).toContain('7,00 €');
+      expect(rows().find((r) => r.includes('Stipendio'))).toContain('90,00 €');
+      fireEvent.click(getByText('Anno'));
+      // anno 2026: Casa 50 + 25 (marzo) = 75
+      expect(rows()[0]).toContain('Casa');
+      expect(rows()[0]).toContain('75,00 €');
+    });
+  });
   it('modifica una voce aggiunta a mano', () => {
     withBalance();
     const { getByLabelText, getByText } = render(<Mese />);

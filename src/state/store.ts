@@ -2,7 +2,7 @@ import { signal } from '@preact/signals';
 import { latestBalance } from '../domain/calc';
 import { todayLocal } from '../domain/days';
 import type { AppData, Cents, Day, Item, OneOff, Override } from '../domain/types';
-import { emptyData, ensureDefaultGroups } from '../storage/backup';
+import { emptyData, ensureDefaults } from '../storage/backup';
 import type { Repo } from '../storage/repo';
 
 export const data = signal<AppData>(emptyData());
@@ -24,13 +24,13 @@ export function getRepo(): Repo | null {
 export async function initStore(repo: Repo): Promise<void> {
   repoRef = repo;
   const loaded = await repo.load();
-  data.value = ensureDefaultGroups(loaded);
+  data.value = ensureDefaults(loaded);
   if (data.value !== loaded) await repo.save(data.value);
   ready.value = true;
 }
 
 export async function mutate(fn: (d: AppData) => AppData): Promise<void> {
-  const next: AppData = ensureDefaultGroups({ ...fn(data.value), updatedAt: new Date().toISOString() });
+  const next: AppData = ensureDefaults({ ...fn(data.value), updatedAt: new Date().toISOString() });
   data.value = next;
   await repoRef?.save(next);
   syncHook?.();
@@ -78,7 +78,7 @@ export function setEarly(item: Item, inBalance: boolean): Promise<void> {
 /** Scambio sincrono: se nel frattempo c'è stata una modifica locale non sovrascrive nulla. */
 export async function applyRemote(remote: AppData, expectedLocalUpdatedAt: string): Promise<boolean> {
   if (data.value.updatedAt !== expectedLocalUpdatedAt) return false;
-  data.value = ensureDefaultGroups(remote);
+  data.value = ensureDefaults(remote);
   await repoRef?.save(data.value);
   return true;
 }
@@ -133,6 +133,29 @@ export function moveRuleToGroup(ruleId: string, groupId: string | undefined): Pr
       const { groupId: _drop, ...rest } = r;
       return groupId ? { ...rest, groupId } : rest;
     }),
+  }));
+}
+
+export function addCategory(name: string): Promise<void> {
+  return mutate((d) => ({ ...d, categories: [...(d.categories ?? []), { id: crypto.randomUUID(), name: name.trim() }] }));
+}
+
+export function renameCategory(id: string, name: string): Promise<void> {
+  return mutate((d) => ({ ...d, categories: (d.categories ?? []).map((c) => (c.id === id ? { ...c, name: name.trim() } : c)) }));
+}
+
+/** Le regole e le voci della categoria restano, senza categoria. */
+export function deleteCategory(id: string): Promise<void> {
+  const clear = <T extends { categoryId?: string }>(x: T): T => {
+    if (x.categoryId !== id) return x;
+    const { categoryId: _drop, ...rest } = x;
+    return rest as T;
+  };
+  return mutate((d) => ({
+    ...d,
+    categories: (d.categories ?? []).filter((c) => c.id !== id),
+    rules: d.rules.map(clear),
+    oneOffs: d.oneOffs.map(clear),
   }));
 }
 

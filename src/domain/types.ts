@@ -19,6 +19,12 @@ export interface Rule {
   monthAmounts?: Record<string, Cents>;
   /** Gruppo scelto dall'utente (vedi AppData.groups). Senza gruppo, la regola va nei gruppi automatici. */
   groupId?: string;
+  /** Per cosa sono i soldi (vedi AppData.categories). Indipendente dal gruppo. */
+  categoryId?: string;
+}
+export interface Category {
+  id: string;
+  name: string;
 }
 export interface RuleGroup {
   id: string;
@@ -44,6 +50,7 @@ export interface OneOff {
   paid: boolean;
   paidOn?: Day;
   paidAt?: string;
+  categoryId?: string;
 }
 export interface Balance {
   value: Cents;
@@ -68,6 +75,9 @@ export interface AppData {
   groups?: RuleGroup[];
   /** I gruppi predefiniti (Entrate, Uscite con addebito automatico, Altre uscite) sono stati creati. */
   defaultGroupsSeeded?: boolean;
+  categories?: Category[];
+  /** Le categorie standard sono state create. */
+  defaultCategoriesSeeded?: boolean;
   overrides: Override[];
   oneOffs: OneOff[];
   balances: Balance[];
@@ -87,6 +97,7 @@ export interface Item {
   paidAt?: string;
   skipped: boolean;
   autoDebit?: boolean;
+  categoryId?: string;
   /** Importo fisso (regola non variabile o voce inserita): non si modifica dall'elenco. */
   locked?: boolean;
 }

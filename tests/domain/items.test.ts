@@ -103,3 +103,15 @@ describe('importi per mese', () => {
     expect(buildItems(d, '2027-02-01', '2027-02-28')[0].amount).toBe(24000);
   });
 });
+
+describe('categoria', () => {
+  it('le voci portano la categoria della regola o della voce inserita', () => {
+    const d = emptyTestData();
+    d.rules = [mkRule({ id: 'r1', categoryId: 'c-casa' }), mkRule({ id: 'r2' })];
+    d.oneOffs = [{ id: 'o1', name: 'benzina', kind: 'expense', amount: 5000, day: '2026-11-10', paid: false, categoryId: 'c-carburante' }];
+    const items = buildItems(d, '2026-11-01', '2026-11-30');
+    expect(items.find((i) => i.ruleId === 'r1')?.categoryId).toBe('c-casa');
+    expect(items.find((i) => i.ruleId === 'r2')?.categoryId).toBeUndefined();
+    expect(items.find((i) => i.oneOffId === 'o1')?.categoryId).toBe('c-carburante');
+  });
+});

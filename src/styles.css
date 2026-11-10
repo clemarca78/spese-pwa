@@ -139,3 +139,11 @@ label.legend-item:has(input:focus-visible) { outline: 2px solid var(--accent); o
 .chart-end.tone-in { fill: var(--pos); }
 .chart-end.tone-out { fill: var(--neg); }
 .legend-val { font-weight: 600; font-variant-numeric: tabular-nums; }
+.cat-filter { margin: 8px 0 4px; }
+.cat-filter select { width: 100%; }
+.cat-totals { padding: 0 12px 12px; }
+.cat-totals > summary { cursor: pointer; padding: 12px 0; font-weight: 600; }
+.cat-row .cat-nums { display: inline-flex; gap: 12px; font-variant-numeric: tabular-nums; }
+small.cat { color: var(--muted); }
+.field select, .field input { font-size: 1rem; color: var(--text); }
+.cat-totals .muted::first-letter { text-transform: uppercase; }

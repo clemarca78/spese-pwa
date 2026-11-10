@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
 import {
-  ImportError, backupDue, defaultGroupId, emptyData, ensureDefaultGroups, exportJson, exportRulesJson, mergeRules, parseImport, parseRulesFile,
+  ImportError, STANDARD_CATEGORIES, backupDue, defaultGroupId, emptyData, ensureDefaultCategories, ensureDefaultGroups, exportJson, exportRulesJson, mergeRules, parseImport, parseRulesFile,
 } from '../../src/storage/backup';
 import { openRepo } from '../../src/storage/repo';
 import type { Rule } from '../../src/domain/types';
@@ -125,6 +125,41 @@ describe('gruppi predefiniti', () => {
     const base = ensureDefaultGroups(emptyData());
     const merged = mergeRules(base, [rule({ id: 'n', autoDebit: true })]);
     expect(merged.rules[0].groupId).toBe('g-uscite-auto');
+  });
+});
+
+describe('categorie', () => {
+  it('le categorie standard comprendono Carburante, Casa, Stipendio', () => {
+    const names = STANDARD_CATEGORIES.map((c) => c.name);
+    expect(names).toEqual(expect.arrayContaining(['Carburante', 'Casa', 'Cibo', 'Salute', 'Bollette', 'Stipendio']));
+    expect(new Set(STANDARD_CATEGORIES.map((c) => c.id)).size).toBe(STANDARD_CATEGORIES.length);
+  });
+  it('le crea una volta sola, senza toccare quelle dell utente né assegnarle alle voci', () => {
+    const d = { ...emptyData(), categories: [{ id: 'mia', name: 'Hobby' }], rules: [rule({ id: 'a' })] };
+    const once = ensureDefaultCategories(d);
+    expect(once.categories?.at(-1)).toEqual({ id: 'mia', name: 'Hobby' });
+    expect(once.categories?.some((c) => c.name === 'Carburante')).toBe(true);
+    expect(once.defaultCategoriesSeeded).toBe(true);
+    expect(once.rules[0].categoryId).toBeUndefined();
+    const without = { ...once, categories: (once.categories ?? []).filter((c) => c.name !== 'Carburante') };
+    expect(ensureDefaultCategories(without).categories?.some((c) => c.name === 'Carburante')).toBe(false);
+  });
+  it('il backup accetta le categorie e rifiuta quelle malformate', () => {
+    const withCats = (extra: object) => JSON.stringify({ ...emptyData(), ...extra });
+    expect(() => parseImport(withCats({ categories: [{ id: 'c1', name: 'Casa' }], rules: [rule({ categoryId: 'c1' })] }))).not.toThrow();
+    expect(() => parseImport(withCats({ categories: [{ id: 'c1' }] }))).toThrow(ImportError);
+    expect(() => parseImport(withCats({ rules: [rule({ categoryId: 3 as never })] }))).toThrow(ImportError);
+    expect(() => parseImport(withCats({ oneOffs: [{ id: 'o', name: 'x', kind: 'expense', amount: 1, day: '2026-11-01', paid: false, categoryId: 3 }] }))).toThrow(ImportError);
+  });
+  it('esporta e reimporta le regole con le loro categorie', () => {
+    const d = emptyData();
+    d.categories = [{ id: 'c1', name: 'Casa' }];
+    d.rules = [rule({ id: 'a', categoryId: 'c1' })];
+    const parsed = parseRulesFile(exportRulesJson(d));
+    expect(parsed.categories).toEqual([{ id: 'c1', name: 'Casa' }]);
+    const merged = mergeRules(emptyData(), parsed.rules, parsed.varieDailyDefault, parsed.groups, parsed.categories);
+    expect(merged.categories).toEqual([{ id: 'c1', name: 'Casa' }]);
+    expect(merged.rules[0].categoryId).toBe('c1');
   });
 });
 

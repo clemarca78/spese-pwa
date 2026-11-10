@@ -1,7 +1,7 @@
 import { useState } from 'preact/hooks';
 import { ImportError, exportJson, exportRulesJson, mergeRules, parseImport, parseRulesFile } from '../storage/backup';
 import { connectDrive, conflictResolver, disconnectDrive, driveConnected, lastSyncAt, syncNow } from '../state/sync';
-import { data, getRepo, mutate, syncStatus } from '../state/store';
+import { addCategory, data, deleteCategory, getRepo, mutate, renameCategory, syncStatus } from '../state/store';
 import { createDriveAdapter } from '../sync/drive';
 import { getAccessToken } from '../sync/googleAuth';
 
@@ -25,6 +25,28 @@ const STATUS: Record<string, string> = {
 export function Impostazioni() {
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const s = data.value.settings;
+  const cats = data.value.categories ?? [];
+  const [newCat, setNewCat] = useState('');
+  const [catError, setCatError] = useState<string | null>(null);
+  const [renamingCat, setRenamingCat] = useState<string | null>(null);
+  const [renameCatText, setRenameCatText] = useState('');
+  const catTaken = (n: string, exceptId?: string) => cats.some((c) => c.id !== exceptId && c.name.trim().toLowerCase() === n.trim().toLowerCase());
+  function createCat() {
+    const n = newCat.trim();
+    if (!n) return setCatError('Scrivi il nome della categoria.');
+    if (catTaken(n)) return setCatError('Una categoria con questo nome esiste già.');
+    setCatError(null);
+    setNewCat('');
+    void addCategory(n);
+  }
+  function saveCatName(id: string) {
+    const n = renameCatText.trim();
+    if (!n) return setCatError('Scrivi il nome della categoria.');
+    if (catTaken(n, id)) return setCatError('Una categoria con questo nome esiste già.');
+    setCatError(null);
+    setRenamingCat(null);
+    void renameCategory(id, n);
+  }
 
   async function exportBackup() {
     download(`spese-backup-${new Date().toISOString().slice(0, 10)}.json`, exportJson(data.value));
@@ -47,8 +69,8 @@ export function Impostazioni() {
   async function importRules(file: File | undefined) {
     if (!file) return;
     try {
-      const { rules, varieDailyDefault, groups } = parseRulesFile(await file.text());
-      await mutate((d) => mergeRules(d, rules, varieDailyDefault, groups));
+      const { rules, varieDailyDefault, groups, categories } = parseRulesFile(await file.text());
+      await mutate((d) => mergeRules(d, rules, varieDailyDefault, groups, categories));
       setMessage({ ok: true, text: `${rules.length} regole importate.` });
     } catch (e) {
       setMessage({ ok: false, text: e instanceof ImportError ? e.message : 'Impossibile leggere il file.' });
@@ -106,6 +128,42 @@ export function Impostazioni() {
         </div>
         <p class="muted">Se scegli la regola dello stipendio, il riferimento di "Usabile" è la sua prossima data non ancora arrivata: se lo stipendio arriva in anticipo, passa subito al mese dopo.</p>
         <p class="muted">"Usabile" è quanto hai sul conto meno le uscite non pagate prima di questo giorno: dopo quella data arrivano nuovi soldi.</p>
+      </section>
+
+      <section class="card">
+        <h3>Categorie</h3>
+        <p class="muted">Servono a capire per cosa spendi o da dove entrano i soldi. Si assegnano a regole e voci, e il Mese mostra i totali per categoria. Eliminando una categoria, le sue regole e voci restano senza categoria.</p>
+        <div class="row">
+          <input aria-label="Nome nuova categoria" placeholder="Nuova categoria" value={newCat} onInput={(e) => setNewCat(e.currentTarget.value)} />
+          <button onClick={createCat}>Aggiungi categoria</button>
+        </div>
+        {catError ? <p role="alert" class="neg">{catError}</p> : null}
+        <ul class="items">
+          {cats.map((c) => (
+            <li class="group-row" key={c.id}>
+              {renamingCat === c.id ? (
+                <>
+                  <input aria-label="Nuovo nome della categoria" value={renameCatText} onInput={(e) => setRenameCatText(e.currentTarget.value)} />
+                  <button onClick={() => saveCatName(c.id)}>Salva nome categoria</button>
+                  <button class="link" onClick={() => { setRenamingCat(null); setCatError(null); }}>Annulla</button>
+                </>
+              ) : (
+                <>
+                  <span class="name">{c.name}</span>
+                  <span class="actions">
+                    <button class="link" aria-label={`Rinomina categoria: ${c.name}`} onClick={() => { setRenamingCat(c.id); setRenameCatText(c.name); setCatError(null); }}>Rinomina</button>
+                    <button class="link danger" aria-label={`Elimina categoria: ${c.name}`}
+                      onClick={() => {
+                        if (!window.confirm(`Eliminare la categoria "${c.name}"? Le sue regole e voci restano, senza categoria.`)) return;
+                        void deleteCategory(c.id);
+                      }}>Elimina</button>
+                  </span>
+                </>
+              )}
+            </li>
+          ))}
+          {cats.length === 0 ? <li class="empty">Nessuna categoria.</li> : null}
+        </ul>
       </section>
 
       <section class="card">

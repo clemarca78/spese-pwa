@@ -123,6 +123,26 @@ describe('Regole', () => {
     expect(data.value.overrides.map((o) => o.ruleId)).toEqual(['r2']);
     confirm.mockRestore();
   });
+  describe('categorie delle regole', () => {
+    it('il modulo salva la categoria scelta, la riapre e la riga la mostra', () => {
+      const d = emptyData();
+      d.categories = [{ id: 'c-bol', name: 'Bollette' }, { id: 'c-carb', name: 'Carburante' }];
+      data.value = d;
+      const r = render(<Regole />);
+      fireEvent.click(r.getByText('Nuova regola'));
+      fireEvent.input(r.getByLabelText('Nome regola'), { target: { value: 'Enel luce' } });
+      fireEvent.input(r.getByLabelText('Importo regola'), { target: { value: '150' } });
+      fireEvent.change(r.getByLabelText('Categoria'), { target: { value: 'c-bol' } });
+      fireEvent.click(r.getByText('Salva regola'));
+      expect(data.value.rules[0].categoryId).toBe('c-bol');
+      expect(r.container.textContent).toContain('Bollette');
+      fireEvent.click(r.getByText('Modifica'));
+      expect((r.getByLabelText('Categoria') as HTMLSelectElement).value).toBe('c-bol');
+      fireEvent.change(r.getByLabelText('Categoria'), { target: { value: '' } });
+      fireEvent.click(r.getByText('Salva regola'));
+      expect(data.value.rules[0].categoryId).toBeUndefined();
+    });
+  });
   describe('gruppi predefiniti come gruppi veri', () => {
     const R = (id: string, name: string, extra: object = {}) => ({
       id, name, kind: 'expense' as const, amount: 1000, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=10', start: '2026-01-01', active: true, ...extra,

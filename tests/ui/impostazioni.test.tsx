@@ -77,6 +77,58 @@ describe('Impostazioni', () => {
     fireEvent.input(input, { target: { value: '31' } });
     expect(data.value.settings.payDay).toBe(12);
   });
+  describe('categorie', () => {
+    function withCats() {
+      const d = data.value;
+      data.value = {
+        ...d,
+        defaultCategoriesSeeded: true,
+        categories: [{ id: 'c-casa', name: 'Casa' }, { id: 'c-carb', name: 'Carburante' }],
+        rules: [{ id: 'r1', name: 'Mutuo', kind: 'expense', amount: 1, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=1', start: '2026-01-01', active: true, categoryId: 'c-casa' }],
+        oneOffs: [{ id: 'o1', name: 'pieno', kind: 'expense', amount: 1, day: '2026-11-10', paid: false, categoryId: 'c-carb' }],
+      };
+    }
+    it('aggiunge una categoria nuova, ma non una doppia o vuota', async () => {
+      withCats();
+      const r = render(<Impostazioni />);
+      fireEvent.click(r.getByText('Aggiungi categoria'));
+      expect(r.getByRole('alert').textContent).toMatch(/nome/i);
+      fireEvent.input(r.getByLabelText('Nome nuova categoria'), { target: { value: ' casa ' } });
+      fireEvent.click(r.getByText('Aggiungi categoria'));
+      expect(r.getByRole('alert').textContent).toMatch(/esiste già/i);
+      fireEvent.input(r.getByLabelText('Nome nuova categoria'), { target: { value: 'Hobby' } });
+      fireEvent.click(r.getByText('Aggiungi categoria'));
+      await waitFor(() => expect(data.value.categories?.some((c) => c.name === 'Hobby')).toBe(true));
+    });
+    it('rinomina una categoria', async () => {
+      withCats();
+      const r = render(<Impostazioni />);
+      fireEvent.click(r.getByLabelText('Rinomina categoria: Carburante'));
+      fireEvent.input(r.getByLabelText('Nuovo nome della categoria'), { target: { value: 'Benzina e gasolio' } });
+      fireEvent.click(r.getByText('Salva nome categoria'));
+      await waitFor(() => expect(data.value.categories?.find((c) => c.id === 'c-carb')?.name).toBe('Benzina e gasolio'));
+    });
+    it('elimina una categoria dopo la conferma: le voci restano senza categoria', async () => {
+      withCats();
+      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+      const r = render(<Impostazioni />);
+      fireEvent.click(r.getByLabelText('Elimina categoria: Carburante'));
+      expect(data.value.categories).toHaveLength(2);
+      confirm.mockReturnValue(true);
+      fireEvent.click(r.getByLabelText('Elimina categoria: Carburante'));
+      await waitFor(() => expect(data.value.categories?.some((c) => c.id === 'c-carb')).toBe(false));
+      expect(data.value.oneOffs[0].categoryId).toBeUndefined();
+      expect(data.value.rules[0].categoryId).toBe('c-casa');
+    });
+    it('Importa regole porta anche le categorie del file', async () => {
+      withCats();
+      const file = { type: 'rules', schemaVersion: 1, categories: [{ id: 'c-nuova', name: 'Animali' }], rules: [{ id: 'm', name: 'Veterinario', kind: 'expense', amount: 1, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=1', start: '2026-01-01', active: true, categoryId: 'c-nuova' }] };
+      const r = render(<Impostazioni />);
+      pick(r.getByLabelText('Importa regole'), JSON.stringify(file));
+      await waitFor(() => expect(data.value.categories?.some((c) => c.id === 'c-nuova')).toBe(true));
+      expect(data.value.rules.find((x) => x.id === 'm')?.categoryId).toBe('c-nuova');
+    });
+  });
   it('sceglie la regola dello stipendio tra le entrate', () => {
     const d = data.value;
     data.value = { ...d, rules: [

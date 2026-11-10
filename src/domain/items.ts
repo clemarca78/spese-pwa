@@ -34,6 +34,7 @@ export function buildItems(data: AppData, from: Day, to: Day, today: Day = today
         ...(o?.paidAt ? { paidAt: o.paidAt } : {}),
         skipped: o?.skipped ?? false,
         ...(rule.autoDebit ? { autoDebit: true } : {}),
+        ...(rule.categoryId ? { categoryId: rule.categoryId } : {}),
         ...(!rule.variable ? { locked: true } : {}),
       });
     }
@@ -42,7 +43,7 @@ export function buildItems(data: AppData, from: Day, to: Day, today: Day = today
     if (o.day < from || o.day > to) continue;
     items.push({
       key: o.id, oneOffId: o.id, name: o.name, kind: o.kind, day: o.day, amount: o.amount,
-      estimated: false, locked: true, paid: o.paid, ...(o.paidOn ? { paidOn: o.paidOn } : {}), ...(o.paidAt ? { paidAt: o.paidAt } : {}), skipped: false,
+      estimated: false, locked: true, ...(o.categoryId ? { categoryId: o.categoryId } : {}), paid: o.paid, ...(o.paidOn ? { paidOn: o.paidOn } : {}), ...(o.paidAt ? { paidAt: o.paidAt } : {}), skipped: false,
     });
   }
   return items.sort((a, b) => a.day.localeCompare(b.day) || a.name.localeCompare(b.name));
