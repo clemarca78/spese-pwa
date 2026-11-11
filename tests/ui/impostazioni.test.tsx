@@ -77,6 +77,14 @@ describe('Impostazioni', () => {
     fireEvent.input(input, { target: { value: '31' } });
     expect(data.value.settings.payDay).toBe(12);
   });
+  it('spiega come catturare le spese dalle notifiche e mostra il link da usare', () => {
+    const r = render(<Impostazioni />);
+    expect(r.getByText('Spese dalle notifiche')).toBeTruthy();
+    expect(r.container.textContent).toContain('?testo=');
+    expect(r.container.textContent).toMatch(/Tasker/);
+    expect(r.container.textContent).toMatch(/Automate/);
+    expect(r.container.textContent).toMatch(/iPhone/);
+  });
   describe('categorie', () => {
     function withCats() {
       const d = data.value;

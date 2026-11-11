@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { todayLocal } from '../../src/domain/days';
 import type { Item } from '../../src/domain/types';
-import { addBalance, addCategory, addGroup, deleteCategory, renameCategory, setEarly, addOneOff, deleteGroup, moveRuleToGroup, renameGroup, data, deleteOneOff, deleteRule, initStore, mutate, setItemAmount, setPaid, setSkipped, updateOneOff } from '../../src/state/store';
+import { addBalance, addCapture, confirmCapture, discardCapture, addCategory, addGroup, deleteCategory, renameCategory, setEarly, addOneOff, deleteGroup, moveRuleToGroup, renameGroup, data, deleteOneOff, deleteRule, initStore, mutate, setItemAmount, setPaid, setSkipped, updateOneOff } from '../../src/state/store';
 import { emptyData } from '../../src/storage/backup';
 import { openRepo } from '../../src/storage/repo';
 
@@ -147,6 +147,31 @@ describe('store', () => {
     expect((data.value.categories ?? []).some((c) => c.id === id)).toBe(false);
     expect('categoryId' in data.value.rules[0]).toBe(false);
     expect('categoryId' in data.value.oneOffs[0]).toBe(false);
+  });
+  describe('spese da confermare', () => {
+    const draft = { name: 'SFIZI & P', amount: 950, kind: 'expense' as const, day: '2026-11-11', time: '13:45', source: 'intesa' };
+    it('aggiunge una spesa catturata e scarta i doppioni (Intesa e Wallet per lo stesso pagamento)', async () => {
+      expect(await addCapture(draft)).toBe(true);
+      expect(await addCapture({ ...draft, name: 'SFIZI & PARTY DI COFA', time: '13:47', source: 'wallet' })).toBe(false);
+      expect(data.value.captures).toHaveLength(1);
+    });
+    it('confermare crea una voce già pagata con categoria, la toglie dalla casella e ricorda l esercente', async () => {
+      await addCapture(draft);
+      const id = (data.value.captures ?? [])[0].id;
+      await confirmCapture(id, { name: 'Sfizi', amount: 950, kind: 'expense', day: '2026-11-11', categoryId: 'c-cibo' });
+      expect(data.value.captures).toEqual([]);
+      expect(data.value.oneOffs[0]).toMatchObject({ name: 'Sfizi', amount: 950, day: '2026-11-11', paid: true, categoryId: 'c-cibo', paidAt: expect.any(String) });
+      expect(Object.values(data.value.merchantCategories ?? {})).toContain('c-cibo');
+      // lo stesso pagamento non rientra dopo la conferma
+      expect(await addCapture({ ...draft, source: 'wallet', time: '13:50' })).toBe(false);
+    });
+    it('scartare toglie la spesa e ricorda che era già stata vista', async () => {
+      await addCapture(draft);
+      await discardCapture((data.value.captures ?? [])[0].id);
+      expect(data.value.captures).toEqual([]);
+      expect(data.value.oneOffs).toHaveLength(0);
+      expect(await addCapture(draft)).toBe(false);
+    });
   });
   it('setItemAmount crea un override con importo reale', async () => {
     await setItemAmount(ruleItem, 12345);

@@ -26,6 +26,18 @@ export interface Category {
   id: string;
   name: string;
 }
+/** Spesa catturata da una notifica, in attesa di conferma. */
+export interface Capture {
+  id: string;
+  name: string;
+  amount: Cents;
+  kind: Kind;
+  day: Day;
+  time?: string;
+  card?: string;
+  source?: string;
+  createdAt: string;
+}
 export interface RuleGroup {
   id: string;
   name: string;
@@ -78,6 +90,12 @@ export interface AppData {
   categories?: Category[];
   /** Le categorie standard sono state create. */
   defaultCategoriesSeeded?: boolean;
+  /** Spese catturate dalle notifiche, da confermare. */
+  captures?: Capture[];
+  /** Ultimi pagamenti già visti (confermati o scartati), per non rientrare due volte. */
+  captureLog?: Array<{ amount: Cents; day: Day; time?: string }>;
+  /** Esercente (chiave) -> categoria scelta l'ultima volta. */
+  merchantCategories?: Record<string, string>;
   overrides: Override[];
   oneOffs: OneOff[];
   balances: Balance[];

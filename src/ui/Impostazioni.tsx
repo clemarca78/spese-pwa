@@ -131,6 +131,23 @@ export function Impostazioni() {
       </section>
 
       <section class="card">
+        <h3>Spese dalle notifiche</h3>
+        <p class="muted">Su Android un'app di automazione (Tasker o Automate) può leggere la notifica di pagamento di Intesa Sanpaolo o di Google Wallet e aprire questo link: la spesa compare in Mese, tra le "Spese da confermare".</p>
+        <p><small>Link da aprire (il testo e il titolo della notifica vanno codificati per un URL):</small></p>
+        <code class="link-box">{`${location.origin}${location.pathname}?testo=<testo della notifica>&app=intesa`}</code>
+        <details class="guide">
+          <summary>Come impostarlo</summary>
+          <ul>
+            <li><strong>Tasker:</strong> Profilo → Evento → UI → Notifica, con app Intesa Sanpaolo e testo "*Hai pagato*". Azione 1: Variabile → Converti, %antext, URL Encode, risultato %t. Azione 2: Rete → Apri URL con il link sopra, mettendo %t al posto del testo (per Wallet usa app=wallet e aggiungi &titolo= con %antitle codificato).</li>
+            <li><strong>Automate:</strong> usa il blocco "Notification posted" per l'app, poi "Intent start" (azione VIEW) con lo stesso link; codifica testo e titolo con la funzione di codifica URL di Automate.</li>
+            <li><strong>Altri campi:</strong> il link accetta anche ?importo=9,50&amp;nome=Bar&amp;data=2026-11-11&amp;ora=13:45&amp;tipo=uscita.</li>
+            <li><strong>Doppioni:</strong> se Intesa e Wallet avvisano per lo stesso pagamento (stesso importo e giorno, orario vicino) ne compare una sola.</li>
+            <li><strong>iPhone:</strong> iOS non permette di leggere le notifiche delle altre app. Con Apple Pay, un'automazione "Transazione" di Comandi Rapidi può aprire il link con ?importo= e ?nome=, ma il link si apre in Safari e non nell'app installata, che ha dati separati: per ora sull'iPhone le spese si inseriscono a mano.</li>
+          </ul>
+        </details>
+      </section>
+
+      <section class="card">
         <h3>Categorie</h3>
         <p class="muted">Servono a capire per cosa spendi o da dove entrano i soldi. Si assegnano a regole e voci, e il Mese mostra i totali per categoria. Eliminando una categoria, le sue regole e voci restano senza categoria.</p>
         <div class="row">

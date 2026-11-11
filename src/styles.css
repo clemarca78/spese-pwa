@@ -147,3 +147,8 @@ label.legend-item:has(input:focus-visible) { outline: 2px solid var(--accent); o
 small.cat { color: var(--muted); }
 .field select, .field input { font-size: 1rem; color: var(--text); }
 .cat-totals .muted::first-letter { text-transform: uppercase; }
+.captures { border-color: var(--accent); }
+.capture { padding: 10px 0; border-bottom: 1px solid var(--line); list-style: none; }
+.capture:last-child { border-bottom: 0; }
+.capture p { margin: 0 0 4px; font-size: .85rem; }
+.link-box { display: block; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); word-break: break-all; font-size: .8rem; }

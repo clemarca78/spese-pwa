@@ -185,6 +185,15 @@ export function parseImport(text: string): AppData {
     day(x.day, 'saldo');
     if (x.at !== undefined && typeof x.at !== 'string') fail('saldo non valido');
   });
+  if (o.captures !== undefined) {
+    arr(o.captures, 'spese da confermare').forEach((v) => {
+      const x = obj(v, 'spesa da confermare');
+      if (typeof x.id !== 'string' || typeof x.name !== 'string') fail('spesa da confermare non valida');
+      if (x.kind !== 'income' && x.kind !== 'expense') fail('spesa da confermare: tipo non valido');
+      int(x.amount, 'spesa da confermare');
+      day(x.day, 'spesa da confermare');
+    });
+  }
   const st = obj(o.settings, 'impostazioni');
   if (typeof st.varieEnabled !== 'boolean') fail('impostazioni incomplete');
   int(st.varieDailyDefault, 'impostazioni');

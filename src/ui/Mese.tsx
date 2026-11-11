@@ -2,11 +2,12 @@ import { signal } from '@preact/signals';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { available, latestBalance, residual } from '../domain/calc';
 import { addDays, endOfMonth, monthLabel, todayLocal } from '../domain/days';
+import { merchantKey } from '../domain/captures';
 import { totalsByCategory } from '../domain/categories';
 import { buildItems } from '../domain/items';
 import { formatEuro, parseEuro } from '../domain/money';
-import type { AppData, Day, Item, Kind } from '../domain/types';
-import { addBalance, addOneOff, data, deleteOneOff, paidStamp, setEarly, setItemAmount, setPaid, setSkipped, updateOneOff } from '../state/store';
+import type { AppData, Capture, Day, Item, Kind } from '../domain/types';
+import { addBalance, addOneOff, confirmCapture, data, deleteOneOff, discardCapture, paidStamp, setEarly, setItemAmount, setPaid, setSkipped, updateOneOff } from '../state/store';
 import { backupDue } from '../storage/backup';
 import { screen } from './Nav';
 
@@ -135,6 +136,47 @@ function arretrati(d: AppData, monthStart: Day): Item[] {
   return buildItems(d, starts[0], addDays(monthStart, -1)).filter((i) => i.kind === 'expense' && !i.paid && !i.skipped);
 }
 
+function CaptureRow({ c }: { c: Capture }) {
+  const suggested = data.value.merchantCategories?.[merchantKey(c.name)];
+  const cats = data.value.categories ?? [];
+  const [name, setName] = useState(c.name);
+  const [amount, setAmount] = useState(plain(c.amount));
+  const [day, setDay] = useState(c.day);
+  const [kind, setKind] = useState<Kind>(c.kind);
+  const [categoryId, setCategoryId] = useState(suggested && cats.some((x) => x.id === suggested) ? suggested : '');
+  const cents = parseEuro(amount);
+  return (
+    <li class="capture">
+      <p class="muted">
+        {c.source ? `${c.source[0].toUpperCase()}${c.source.slice(1)}` : 'Notifica'}
+        {c.time ? ` · ${c.time}` : ''}{c.card ? ` · carta ${c.card}` : ''}
+      </p>
+      <div class="row">
+        <input aria-label={`Nome della spesa: ${c.name}`} placeholder="Nome" value={name} onInput={(e) => setName(e.currentTarget.value)} />
+        <input aria-label={`Importo della spesa: ${c.name}`} inputMode="decimal" value={amount} onInput={(e) => setAmount(e.currentTarget.value)} />
+      </div>
+      <div class="row">
+        <input type="date" aria-label={`Data della spesa: ${c.name}`} value={day} onInput={(e) => setDay(e.currentTarget.value)} />
+        <select aria-label={`Tipo della spesa: ${c.name}`} value={kind} onChange={(e) => setKind(e.currentTarget.value as Kind)}>
+          <option value="expense">Uscita</option>
+          <option value="income">Entrata</option>
+        </select>
+      </div>
+      <div class="row">
+        <select aria-label={`Categoria della spesa: ${c.name}`} value={categoryId} onChange={(e) => setCategoryId(e.currentTarget.value)}>
+          <option value="">Senza categoria</option>
+          {cats.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+        </select>
+      </div>
+      <div class="row">
+        <button aria-label={`Conferma: ${c.name}`} disabled={!name.trim() || cents === null || cents <= 0}
+          onClick={() => void confirmCapture(c.id, { name, amount: cents as number, kind, day, ...(categoryId ? { categoryId } : {}) })}>Conferma</button>
+        <button class="link" aria-label={`Scarta: ${c.name}`} onClick={() => void discardCapture(c.id)}>Scarta</button>
+      </div>
+    </li>
+  );
+}
+
 function AddOneOff() {
   const editing = data.value.oneOffs.find((o) => o.id === editingOneOff.value);
   const [name, setName] = useState(editing?.name ?? '');
@@ -226,6 +268,16 @@ export function Mese() {
           Fai un backup dei dati.{' '}
           <button class="link" onClick={() => (screen.value = 'impostazioni')}>Apri impostazioni</button>
         </div>
+      ) : null}
+
+      {(d.captures ?? []).length > 0 ? (
+        <section class="card captures">
+          <h3>Spese da confermare ({(d.captures ?? []).length})</h3>
+          <p class="muted">Arrivate dalle notifiche. Controlla, scegli la categoria e conferma: la spesa conta subito come già pagata.</p>
+          <ul class="items">
+            {(d.captures ?? []).map((c) => <CaptureRow key={c.id} c={c} />)}
+          </ul>
+        </section>
       ) : null}
 
       <header class="monthnav">

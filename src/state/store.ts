@@ -1,7 +1,8 @@
 import { signal } from '@preact/signals';
 import { latestBalance } from '../domain/calc';
+import { type CaptureDraft, isDuplicateCapture, merchantKey } from '../domain/captures';
 import { todayLocal } from '../domain/days';
-import type { AppData, Cents, Day, Item, OneOff, Override } from '../domain/types';
+import type { AppData, Cents, Day, Item, Kind, OneOff, Override } from '../domain/types';
 import { emptyData, ensureDefaults } from '../storage/backup';
 import type { Repo } from '../storage/repo';
 
@@ -157,6 +158,51 @@ export function deleteCategory(id: string): Promise<void> {
     rules: d.rules.map(clear),
     oneOffs: d.oneOffs.map(clear),
   }));
+}
+
+const LOG_MAX = 100;
+
+/** Aggiunge una spesa catturata. Restituisce false se è un doppione di una già vista. */
+export async function addCapture(draft: CaptureDraft): Promise<boolean> {
+  const d = data.value;
+  if ([...(d.captures ?? []), ...(d.captureLog ?? [])].some((k) => isDuplicateCapture(k, draft))) return false;
+  await mutate((x) => ({ ...x, captures: [...(x.captures ?? []), { ...draft, id: crypto.randomUUID(), createdAt: new Date().toISOString() }] }));
+  return true;
+}
+
+function withoutCapture(d: AppData, id: string): AppData {
+  const c = (d.captures ?? []).find((x) => x.id === id);
+  if (!c) return d;
+  return {
+    ...d,
+    captures: (d.captures ?? []).filter((x) => x.id !== id),
+    captureLog: [...(d.captureLog ?? []), { amount: c.amount, day: c.day, ...(c.time ? { time: c.time } : {}) }].slice(-LOG_MAX),
+  };
+}
+
+/** Conferma: diventa una voce già pagata (o incassata) e si ricorda la categoria di quell'esercente. */
+export function confirmCapture(
+  id: string,
+  edit: { name: string; amount: Cents; kind: Kind; day: Day; categoryId?: string },
+): Promise<void> {
+  return mutate((d) => {
+    const base = withoutCapture(d, id);
+    if (base === d) return d;
+    const name = edit.name.trim();
+    const key = merchantKey(name);
+    return {
+      ...base,
+      oneOffs: [
+        ...base.oneOffs,
+        { id: crypto.randomUUID(), name, kind: edit.kind, amount: edit.amount, day: edit.day, paid: true, ...paidStamp(), ...(edit.categoryId ? { categoryId: edit.categoryId } : {}) },
+      ],
+      ...(edit.categoryId && key ? { merchantCategories: { ...(d.merchantCategories ?? {}), [key]: edit.categoryId } } : {}),
+    };
+  });
+}
+
+export function discardCapture(id: string): Promise<void> {
+  return mutate((d) => withoutCapture(d, id));
 }
 
 export function updateOneOff(id: string, patch: Partial<Omit<OneOff, 'id'>>): Promise<void> {

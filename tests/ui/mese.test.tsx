@@ -333,6 +333,44 @@ describe('Mese', () => {
     fireEvent.click(getByText('Salva modifiche'));
     expect(data.value.oneOffs.find((o) => o.name === 'farmacia')).toMatchObject({ amount: 1500, paid: true });
   });
+  describe('spese da confermare', () => {
+    function withCapture() {
+      withBalance();
+      data.value = {
+        ...data.value,
+        categories: [{ id: 'c-cibo', name: 'Cibo' }, { id: 'c-carb', name: 'Carburante' }],
+        merchantCategories: { sfizi: 'c-cibo' },
+        captures: [{ id: 'k1', name: 'SFIZI & P', amount: 950, kind: 'expense', day: '2026-11-11', time: '13:45', source: 'intesa', card: '2722', createdAt: '2026-11-11T13:46:00.000Z' }],
+      };
+    }
+    it('mostra la spesa catturata con la categoria suggerita e la conferma come già pagata', () => {
+      withCapture();
+      const { getByText, getByLabelText, container } = render(<Mese />);
+      expect(getByText(/Spese da confermare/)).toBeTruthy();
+      expect((getByLabelText('Categoria della spesa: SFIZI & P') as HTMLSelectElement).value).toBe('c-cibo');
+      fireEvent.click(getByLabelText('Conferma: SFIZI & P'));
+      expect(data.value.captures).toEqual([]);
+      expect(data.value.oneOffs.find((o) => o.name === 'SFIZI & P')).toMatchObject({ amount: 950, paid: true, categoryId: 'c-cibo' });
+      expect(tid(container, 'residuo')).toContain('1.490,50'); // 1.500,00 - 9,50
+    });
+    it('si può correggere nome e importo prima di confermare', () => {
+      withCapture();
+      const { getByLabelText } = render(<Mese />);
+      fireEvent.input(getByLabelText('Nome della spesa: SFIZI & P'), { target: { value: 'Pizzeria Sfizi' } });
+      fireEvent.input(getByLabelText('Importo della spesa: SFIZI & P'), { target: { value: '12,00' } });
+      fireEvent.change(getByLabelText('Categoria della spesa: SFIZI & P'), { target: { value: 'c-carb' } });
+      fireEvent.click(getByLabelText('Conferma: SFIZI & P'));
+      expect(data.value.oneOffs.find((o) => o.name === 'Pizzeria Sfizi')).toMatchObject({ amount: 1200, categoryId: 'c-carb' });
+    });
+    it('Scarta toglie la spesa senza inserirla', () => {
+      withCapture();
+      const { getByLabelText, queryByText } = render(<Mese />);
+      fireEvent.click(getByLabelText('Scarta: SFIZI & P'));
+      expect(data.value.captures).toEqual([]);
+      expect(queryByText(/Spese da confermare/)).toBeNull();
+      expect(data.value.oneOffs.some((o) => o.name === 'SFIZI & P')).toBe(false);
+    });
+  });
   describe('categorie', () => {
     function withCats() {
       withBalance();
