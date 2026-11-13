@@ -49,6 +49,7 @@ function Accantonamento() {
       <label>Margine da tenere sempre sul conto <input aria-label="Margine sul conto" inputMode="decimal" value={margin} placeholder="0" onInput={(e) => saveMargin(e.currentTarget.value)} /></label>
       {plan ? (
         <div data-testid="max-monthly">
+          <p data-testid="suggested">{g ? 'Per avvicinarti a ' + formatEuro(g.amount) + ' ti consiglio di mettere da parte circa' : 'Ti consiglio di mettere da parte circa'} <strong>{formatEuro(plan.suggestedMonthly)}</strong> al mese ({formatEuro(plan.suggestedTotal)} in totale{g ? ', il ' + Math.round((plan.suggestedTotal / g.amount) * 100) + '% dell’obiettivo' : ''}). Non è obbligatorio raggiungere l&apos;obiettivo: più avvicini, meglio è.</p>
           <p>Mese per mese ti avanza questo (entrate meno uscite previste). Togli la spunta ai mesi da cui non vuoi accantonare: l&apos;accantonato cresce solo con l&apos;avanzo dei mesi scelti.</p>
           <ul class="items">
             {plan.monthRows.map((r) => (
@@ -66,11 +67,11 @@ function Accantonamento() {
                   {monthLabel(r.month).replace(/^(\p{L}{3})\p{L}*/u, '$1')}
                 </label>
                 <span class={r.net < 0 ? 'neg' : 'pos'}>{formatEuro(r.net)}</span>
-                <span class="muted">accantonato {formatEuro(r.cumulative)}</span>
+                <span>{r.included ? <>metti da parte <strong>{formatEuro(r.put)}</strong></> : <span class="muted">escluso</span>}</span>
               </li>
             ))}
           </ul>
-          <p>Totale accantonabile {g ? 'entro il ' + fmtDay(g.day) : 'nei prossimi 6 mesi'}: <strong>{formatEuro(plan.totalSavable)}</strong>, senza scendere sotto {formatEuro(d.settings.savingsMargin ?? 0)} sul conto.</p>
+          <p class="muted">Massimo possibile {g ? 'entro il ' + fmtDay(g.day) : 'nei prossimi 6 mesi'}, mettendo da parte tutto l&apos;avanzo dei mesi scelti: {formatEuro(plan.totalSavable)}, senza scendere sotto {formatEuro(d.settings.savingsMargin ?? 0)} sul conto.</p>
         </div>
       ) : null}
       <div class="form">
@@ -87,9 +88,9 @@ function Accantonamento() {
         <div data-testid="goal-result">
           <p>Per avere <strong>{formatEuro(g.amount)}</strong> per {g.name} entro il {fmtDay(g.day)} servirebbero in media <strong>{formatEuro(plan.neededMonthly)}</strong> al mese per {plan.months} {plan.months === 1 ? 'mese' : 'mesi'}.</p>
           {plan.reachable ? (
-            <p class="pos">Ce la fai: dai mesi scelti puoi mettere da parte {formatEuro(plan.totalSavable)}.</p>
+            <p class="pos">Puoi arrivare all&apos;obiettivo: il massimo possibile è {formatEuro(plan.totalSavable)}.</p>
           ) : (
-            <p class="neg">Non basta: dai mesi scelti metti da parte {formatEuro(plan.savedAtMax ?? 0)} e ne mancano {formatEuro(plan.shortfall ?? 0)}.</p>
+            <p class="neg">Non basta per intero: al massimo metti da parte {formatEuro(plan.savedAtMax ?? 0)} e ne mancano {formatEuro(plan.shortfall ?? 0)}.</p>
           )}
         </div>
       ) : null}

@@ -8,6 +8,8 @@ export interface MonthSaving {
   month: string;
   net: Cents;
   included: boolean;
+  /** Quanto mettere da parte in questo mese. */
+  put: Cents;
   /** Accantonato fino alla fine di questo mese. */
   cumulative: Cents;
 }
@@ -25,6 +27,10 @@ export interface SavingsPlan {
   realisticMonthly: Cents;
   /** Mese per mese: quanto avanza (entrate meno uscite) e se è scelto per accantonare. */
   monthRows: MonthSaving[];
+  /** Importo mensile consigliato (media sui mesi scelti): ci si avvicina all'obiettivo senza superare quanto il conto regge. */
+  suggestedMonthly: Cents;
+  /** Totale che metteresti da parte seguendo i consigli mese per mese. */
+  suggestedTotal: Cents;
   /** Totale accantonabile entro la data, sommando l'avanzo dei mesi scelti senza scendere sotto il margine. */
   totalSavable: Cents;
   /** Con un obiettivo: quanto servirebbe ogni mese (arrotondato per eccesso a euro interi). */
@@ -79,18 +85,36 @@ export function savingsPlan(data: AppData, goal?: { amount: Cents; day: Day }, d
   };
   const minFrom = new Array<number>(points.length + 1).fill(Infinity);
   for (let i = points.length - 1; i >= 0; i--) minFrom[i] = Math.min(minFrom[i + 1], points[i].balance);
-  let cum = 0;
-  const monthRows: MonthSaving[] = flows.map((m) => {
-    const net = m.income - m.expense - m.varie;
-    const included = !skip.has(m.month);
-    if (included) cum = Math.max(cum, Math.min(cum + Math.max(0, net), minFrom[lastIdx(m.month)] - margin));
-    return { month: m.month, net, included, cumulative: cum };
-  });
-  const totalSavable = Math.max(0, Math.floor(cum / 100) * 100);
+  const run = (f: number): MonthSaving[] => {
+    let cum = 0;
+    return flows.map((m) => {
+      const net = m.income - m.expense - m.varie;
+      const included = !skip.has(m.month);
+      const prev = cum;
+      if (included) cum = Math.max(cum, Math.min(cum + Math.max(0, net) * f, minFrom[lastIdx(m.month)] - margin));
+      return { month: m.month, net, included, put: Math.floor((cum - prev) / 100) * 100, cumulative: Math.floor(cum / 100) * 100 };
+    });
+  };
+  const maxRows = run(1);
+  const totalSavable = Math.max(0, maxRows.at(-1)?.cumulative ?? 0);
+  // con un obiettivo si versa solo la quota dell'avanzo che serve ad avvicinarsi; senza, il massimo possibile
+  let f = 1;
+  if (goal && totalSavable > goal.amount) {
+    let lo = 0;
+    let hi = 1;
+    for (let i = 0; i < 30; i++) {
+      f = (lo + hi) / 2;
+      if ((run(f).at(-1)?.cumulative ?? 0) > goal.amount) hi = f; else lo = f;
+    }
+    f = lo;
+  }
+  const monthRows = run(f);
+  const suggestedTotal = Math.max(0, monthRows.at(-1)?.cumulative ?? 0);
   const used = monthRows.filter((r) => r.included);
   const avgSurplus = used.length ? Math.round(used.reduce((t, r) => t + r.net, 0) / used.length) : 0;
   const realisticMonthly = Math.max(0, Math.min(maxMonthly, Math.floor(totalSavable / n / 100) * 100));
-  const plan: SavingsPlan = { horizonDays: H, months: n, maxMonthly, avgSurplus, realisticMonthly, monthRows, totalSavable };
+  const suggestedMonthly = used.length ? Math.floor(suggestedTotal / used.length / 100) * 100 : 0;
+  const plan: SavingsPlan = { horizonDays: H, months: n, maxMonthly, avgSurplus, realisticMonthly, monthRows, totalSavable, suggestedTotal, suggestedMonthly };
   if (goal) {
     plan.neededMonthly = Math.ceil(goal.amount / n / 100) * 100;
     plan.savedAtMax = totalSavable;

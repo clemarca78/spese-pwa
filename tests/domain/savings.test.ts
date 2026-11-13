@@ -92,3 +92,25 @@ describe('spese varie scelte a mano', () => {
     expect(senza - con).toBeLessThan(90000);
   });
 });
+
+describe('importo consigliato', () => {
+  const salary = () => {
+    const d = base();
+    const rule = { variable: false, start: '2026-01-01', active: true };
+    d.rules = [
+      { ...rule, id: 'i', name: 'stipendio', kind: 'income', amount: 150000, rrule: 'FREQ=MONTHLY;BYMONTHDAY=5' },
+      { ...rule, id: 'u', name: 'affitto', kind: 'expense', amount: 100000, rrule: 'FREQ=MONTHLY;BYMONTHDAY=10' },
+    ];
+    return d;
+  };
+  it('con un obiettivo basso consiglia solo la quota che serve, non tutto l’avanzo', () => {
+    const p = savingsPlan(salary(), { amount: 100000, day: '2027-05-15' })!;
+    expect(p.totalSavable).toBeGreaterThan(100000);
+    expect(p.suggestedTotal).toBeLessThanOrEqual(100000);
+    expect(p.suggestedTotal).toBeGreaterThan(90000);
+  });
+  it('con un obiettivo troppo alto consiglia il massimo possibile', () => {
+    const p = savingsPlan(salary(), { amount: 5000000, day: '2027-05-15' })!;
+    expect(p.suggestedTotal).toBe(p.totalSavable);
+  });
+});
