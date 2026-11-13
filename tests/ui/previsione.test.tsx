@@ -114,3 +114,30 @@ describe('Previsione: valori finali', () => {
     expect(container.querySelectorAll('[data-testid="end-label"]')).toHaveLength(3);
   });
 });
+
+describe('Accantonamento', () => {
+  it('salva un obiettivo e mostra quanto serve al mese', async () => {
+    const { getByLabelText, getByText, findByTestId, getByTestId } = render(<Previsione />);
+    expect(getByTestId('max-monthly').textContent).toContain('al massimo');
+    fireEvent.input(getByLabelText('Nome obiettivo'), { target: { value: 'Comunione' } });
+    fireEvent.input(getByLabelText('Importo obiettivo'), { target: { value: '600' } });
+    fireEvent.input(getByLabelText('Data obiettivo'), { target: { value: '2027-05-15' } });
+    fireEvent.click(getByText('Salva obiettivo'));
+    const r = await findByTestId('goal-result');
+    expect(data.value.goal).toEqual({ name: 'Comunione', amount: 60000, day: '2027-05-15' });
+    expect(r.textContent).toContain('100,00');
+    fireEvent.click(getByText('Rimuovi obiettivo'));
+    expect(data.value.goal).toBeUndefined();
+  });
+  it('rifiuta un importo non valido o una data passata', () => {
+    const { getByLabelText, getByText, getByRole } = render(<Previsione />);
+    fireEvent.input(getByLabelText('Nome obiettivo'), { target: { value: 'X' } });
+    fireEvent.click(getByText('Salva obiettivo'));
+    expect(getByRole('alert').textContent).toMatch(/importo/i);
+    fireEvent.input(getByLabelText('Importo obiettivo'), { target: { value: '50' } });
+    fireEvent.input(getByLabelText('Data obiettivo'), { target: { value: '2026-10-01' } });
+    fireEvent.click(getByText('Salva obiettivo'));
+    expect(getByRole('alert').textContent).toMatch(/dopo il giorno del saldo/i);
+    expect(data.value.goal).toBeUndefined();
+  });
+});

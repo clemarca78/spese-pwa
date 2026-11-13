@@ -194,6 +194,12 @@ export function parseImport(text: string): AppData {
       day(x.day, 'spesa da confermare');
     });
   }
+  if (o.goal !== undefined) {
+    const g = obj(o.goal, 'obiettivo');
+    if (typeof g.name !== 'string') fail('obiettivo non valido');
+    int(g.amount, 'obiettivo');
+    day(g.day, 'obiettivo');
+  }
   const st = obj(o.settings, 'impostazioni');
   if (typeof st.varieEnabled !== 'boolean') fail('impostazioni incomplete');
   int(st.varieDailyDefault, 'impostazioni');

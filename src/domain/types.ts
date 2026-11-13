@@ -96,10 +96,17 @@ export interface AppData {
   captureLog?: Array<{ amount: Cents; day: Day; time?: string }>;
   /** Esercente (chiave) -> categoria scelta l'ultima volta. */
   merchantCategories?: Record<string, string>;
+  /** Obiettivo di risparmio (es. la comunione): importo da avere entro il giorno indicato. */
+  goal?: SavingsGoal;
   overrides: Override[];
   oneOffs: OneOff[];
   balances: Balance[];
   settings: Settings;
+}
+export interface SavingsGoal {
+  name: string;
+  amount: Cents;
+  day: Day;
 }
 export interface Item {
   key: string;

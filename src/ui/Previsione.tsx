@@ -1,5 +1,8 @@
 import { signal } from '@preact/signals';
+import { useState } from 'preact/hooks';
 import { latestBalance } from '../domain/calc';
+import { savingsPlan } from '../domain/savings';
+import { parseEuro } from '../domain/money';
 import { monthLabel } from '../domain/days';
 import { biggestDrops, cumulativeFlows, firstBelow, forecast, monthlyFlows } from '../domain/forecast';
 import { formatEuro } from '../domain/money';
@@ -11,6 +14,59 @@ export const horizonDays = signal(90);
 const showIncome = signal(true);
 const showExpense = signal(true);
 const fmtDay = (d: string) => d.split('-').reverse().join('/');
+
+function Accantonamento() {
+  const d = data.value;
+  const g = d.goal;
+  const [name, setName] = useState(g?.name ?? '');
+  const [amount, setAmount] = useState(g ? String(g.amount / 100).replace('.', ',') : '');
+  const [day, setDay] = useState(g?.day ?? '');
+  const [err, setErr] = useState('');
+  const plan = savingsPlan(d, g ? { amount: g.amount, day: g.day } : undefined);
+  const save = () => {
+    const cents = parseEuro(amount);
+    if (!name.trim()) return setErr('Scrivi il nome dell’obiettivo.');
+    if (cents === null || cents <= 0) return setErr('Scrivi un importo valido.');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return setErr('Scegli la data entro cui ti serve.');
+    const bal = latestBalance(d);
+    if (bal && day <= bal.day) return setErr('La data deve essere dopo il giorno del saldo.');
+    setErr('');
+    void mutate((x) => ({ ...x, goal: { name: name.trim(), amount: cents, day } }));
+  };
+  return (
+    <section class="card" aria-label="Accantonamento">
+      <h3>Accantonamento</h3>
+      <p class="muted">Quanto puoi mettere da parte ogni mese senza andare sotto zero, tenendo conto di regole, voci previste{d.settings.varieEnabled ? ' e spese varie stimate' : ''}.</p>
+      {!d.settings.varieEnabled ? <p class="muted">Le spese varie (cibo e altro) non sono incluse: attiva &quot;Spese varie stimate&quot; qui sopra per un calcolo più prudente.</p> : null}
+      {plan ? (
+        <p data-testid="max-monthly">
+          {g ? 'Fino al ' + fmtDay(g.day) : 'Nei prossimi 6 mesi'} puoi accantonare al massimo <strong>{formatEuro(plan.maxMonthly)}</strong> al mese.
+        </p>
+      ) : null}
+      <div class="form">
+        <label>Obiettivo <input aria-label="Nome obiettivo" value={name} placeholder="Comunione" onInput={(e) => setName(e.currentTarget.value)} /></label>
+        <label>Importo da avere <input aria-label="Importo obiettivo" inputMode="decimal" value={amount} placeholder="2000" onInput={(e) => setAmount(e.currentTarget.value)} /></label>
+        <label>Entro il <input aria-label="Data obiettivo" type="date" value={day} onInput={(e) => setDay(e.currentTarget.value)} /></label>
+        {err ? <p role="alert" class="banner">{err}</p> : null}
+        <div class="row">
+          <button class="primary" onClick={save}>Salva obiettivo</button>
+          {g ? <button onClick={() => { setName(''); setAmount(''); setDay(''); void mutate((x) => { const { goal: _g, ...rest } = x; return rest; }); }}>Rimuovi obiettivo</button> : null}
+        </div>
+      </div>
+      {g && plan && plan.neededMonthly !== undefined ? (
+        <div data-testid="goal-result">
+          <p>Per avere <strong>{formatEuro(g.amount)}</strong> per {g.name} entro il {fmtDay(g.day)} servono <strong>{formatEuro(plan.neededMonthly)}</strong> al mese per {plan.months} {plan.months === 1 ? 'mese' : 'mesi'}.</p>
+          {plan.reachable ? (
+            <p class="pos">Ce la fai: versando {formatEuro(plan.neededMonthly)} al mese il saldo previsto non va sotto zero.</p>
+          ) : (
+            <p class="neg">Non basta: versando il massimo ({formatEuro(plan.maxMonthly)} al mese) metti da parte {formatEuro(plan.savedAtMax ?? 0)} e ne mancano {formatEuro(plan.shortfall ?? 0)}.</p>
+          )}
+        </div>
+      ) : null}
+      {g && !plan ? <p class="banner">La data dell&apos;obiettivo è precedente all&apos;ultimo saldo: aggiornala.</p> : null}
+    </section>
+  );
+}
 
 export function Previsione() {
   const d = data.value;
@@ -126,6 +182,7 @@ export function Previsione() {
           <strong class={total.income - total.expense < 0 ? 'neg' : 'pos'}>Differenza {formatEuro(total.income - total.expense)}</strong>
         </div>
       </section>
+      <Accantonamento />
       <section class="card">
         <h3>Giorni critici</h3>
         <ul class="items">
