@@ -162,3 +162,15 @@ describe('Mesi da cui accantonare', () => {
     expect(data.value.settings.savingsSkipMonths).toBeUndefined();
   });
 });
+
+describe('Spese varie al mese', () => {
+  it('si imposta a mano e si toglie', () => {
+    data.value = { ...data.value, settings: { ...data.value.settings, varieEnabled: true } };
+    const { getByLabelText, getByTestId } = render(<Previsione />);
+    expect(getByTestId('varie-now').textContent).toMatch(/un solo saldo/);
+    fireEvent.input(getByLabelText('Spese varie al mese'), { target: { value: '800' } });
+    expect(data.value.settings.varieMonthly).toBe(80000);
+    fireEvent.input(getByLabelText('Spese varie al mese'), { target: { value: '' } });
+    expect(data.value.settings.varieMonthly).toBeUndefined();
+  });
+});

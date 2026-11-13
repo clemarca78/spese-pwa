@@ -1,6 +1,7 @@
 import { signal } from '@preact/signals';
 import { useState } from 'preact/hooks';
 import { latestBalance } from '../domain/calc';
+import { estimateDailyVarie } from '../domain/varie';
 import { savingsPlan } from '../domain/savings';
 import { parseEuro } from '../domain/money';
 import { monthLabel } from '../domain/days';
@@ -153,6 +154,19 @@ export function Previsione() {
             }} />
           Spese varie stimate
         </label>
+        {d.settings.varieEnabled ? (
+          <div class="varie-set">
+            <p data-testid="varie-now">Ora l&apos;app conta {formatEuro(Math.round((estimateDailyVarie(d) * 365) / 12))} al mese di spese varie{d.settings.varieMonthly === undefined ? (d.balances.length < 2 ? ' (hai inserito un solo saldo: la stima da saldi non è possibile)' : ' (stima dai tuoi ultimi saldi)') : ' (importo scelto da te)'}.</p>
+            <label>Spese varie al mese (cibo, benzina, contanti) <input aria-label="Spese varie al mese" inputMode="decimal" placeholder="stima automatica"
+              defaultValue={d.settings.varieMonthly === undefined ? '' : String(d.settings.varieMonthly / 100).replace('.', ',')}
+              onInput={(e) => {
+                const v = e.currentTarget.value.trim();
+                const c = v === '' ? undefined : parseEuro(v);
+                if (c === null || (c !== undefined && c < 0)) return;
+                void mutate((x) => ({ ...x, settings: { ...x.settings, varieMonthly: c } }));
+              }} /></label>
+          </div>
+        ) : null}
         <p class="muted varie-hint">Aggiunge ogni giorno una spesa media, calcolata dai tuoi ultimi saldi, per quello che non registri (contanti, piccole spese).</p>
         <details class="guide">
           <summary>Come leggere il grafico</summary>

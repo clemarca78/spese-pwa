@@ -2,8 +2,9 @@ import { addDays, diffDays } from './days';
 import { buildItems } from './items';
 import type { AppData, Cents } from './types';
 
-/** Spese non tracciate (centesimi al giorno), dalle ultime 4 coppie di saldi. Vedi spec §6. */
+/** Spese non tracciate (centesimi al giorno): l'importo mensile scelto a mano, altrimenti dalle ultime 4 coppie di saldi (con meno di 2 saldi vale il valore predefinito, 0). */
 export function estimateDailyVarie(data: AppData): Cents {
+  if (data.settings.varieMonthly !== undefined) return Math.round((data.settings.varieMonthly * 12) / 365);
   const bal = [...data.balances].sort((a, b) => a.day.localeCompare(b.day));
   if (bal.length < 2) return data.settings.varieDailyDefault;
   let varie = 0;

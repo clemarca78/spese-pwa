@@ -80,3 +80,15 @@ describe('savingsPlan', () => {
     expect(savingsPlan(base(), { amount: 1000, day: '2026-10-01' })).toBeNull();
   });
 });
+
+describe('spese varie scelte a mano', () => {
+  it('con un importo mensile le varie riducono l’avanzo di ogni mese', () => {
+    const d = base();
+    d.settings.varieEnabled = true;
+    const senza = savingsPlan(d, { amount: 60000, day: '2027-05-15' })!.monthRows[2].net;
+    d.settings.varieMonthly = 80000;
+    const con = savingsPlan(d, { amount: 60000, day: '2027-05-15' })!.monthRows[2].net;
+    expect(senza - con).toBeGreaterThan(70000);
+    expect(senza - con).toBeLessThan(90000);
+  });
+});

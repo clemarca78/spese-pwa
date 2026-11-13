@@ -73,6 +73,8 @@ export interface Balance {
 export interface Settings {
   varieEnabled: boolean;
   varieDailyDefault: Cents;
+  /** Spese varie al mese scelte a mano: se presente sostituisce la stima dai saldi. */
+  varieMonthly?: Cents;
   backupReminderDays: number;
   lastBackupAt?: string;
   /** Giorno del mese in cui arriva lo stipendio (1-28, default 10). */
