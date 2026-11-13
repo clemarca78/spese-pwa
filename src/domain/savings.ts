@@ -3,6 +3,15 @@ import { addDays, diffDays } from './days';
 import { forecast, monthlyFlows } from './forecast';
 import type { AppData, Cents, Day } from './types';
 
+export interface MonthSaving {
+  /** 'YYYY-MM' */
+  month: string;
+  net: Cents;
+  included: boolean;
+  /** Accantonato fino alla fine di questo mese. */
+  cumulative: Cents;
+}
+
 export interface SavingsPlan {
   /** Giorni dall'ultimo saldo alla data considerata. */
   horizonDays: number;
@@ -14,6 +23,10 @@ export interface SavingsPlan {
   avgSurplus: Cents;
   /** Importo realistico da accantonare ogni mese: il minore tra avanzo medio e massimo, in euro interi. */
   realisticMonthly: Cents;
+  /** Mese per mese: quanto avanza (entrate meno uscite) e se è scelto per accantonare. */
+  monthRows: MonthSaving[];
+  /** Totale accantonabile entro la data, sommando l'avanzo dei mesi scelti senza scendere sotto il margine. */
+  totalSavable: Cents;
   /** Con un obiettivo: quanto servirebbe ogni mese (arrotondato per eccesso a euro interi). */
   neededMonthly?: Cents;
   /** Con un obiettivo: quanto avresti messo da parte versando ogni mese l'importo realistico. */
@@ -57,15 +70,32 @@ export function savingsPlan(data: AppData, goal?: { amount: Cents; day: Day }, d
     if (min < Infinity) best = Math.min(best, Math.floor((min - margin) / k));
   }
   const maxMonthly = best === Infinity ? 0 : Math.max(0, Math.floor(best / 100) * 100);
-  const net = monthlyFlows(data, H).reduce((t, m) => t + m.income - m.expense - m.varie, 0);
-  const avgSurplus = Math.round(net / (H / 30.4375));
-  const realisticMonthly = Math.max(0, Math.min(maxMonthly, Math.floor(avgSurplus / 100) * 100));
-  const plan: SavingsPlan = { horizonDays: H, months: n, maxMonthly, avgSurplus, realisticMonthly };
+  const flows = monthlyFlows(data, H);
+  const skip = new Set(data.settings.savingsSkipMonths ?? []);
+  const lastIdx = (m: string) => {
+    let idx = 0;
+    points.forEach((p, i) => { if (p.day.slice(0, 7) === m) idx = i; });
+    return idx;
+  };
+  const minFrom = new Array<number>(points.length + 1).fill(Infinity);
+  for (let i = points.length - 1; i >= 0; i--) minFrom[i] = Math.min(minFrom[i + 1], points[i].balance);
+  let cum = 0;
+  const monthRows: MonthSaving[] = flows.map((m) => {
+    const net = m.income - m.expense - m.varie;
+    const included = !skip.has(m.month);
+    if (included) cum = Math.max(cum, Math.min(cum + Math.max(0, net), minFrom[lastIdx(m.month)] - margin));
+    return { month: m.month, net, included, cumulative: cum };
+  });
+  const totalSavable = Math.max(0, Math.floor(cum / 100) * 100);
+  const used = monthRows.filter((r) => r.included);
+  const avgSurplus = used.length ? Math.round(used.reduce((t, r) => t + r.net, 0) / used.length) : 0;
+  const realisticMonthly = Math.max(0, Math.min(maxMonthly, Math.floor(totalSavable / n / 100) * 100));
+  const plan: SavingsPlan = { horizonDays: H, months: n, maxMonthly, avgSurplus, realisticMonthly, monthRows, totalSavable };
   if (goal) {
     plan.neededMonthly = Math.ceil(goal.amount / n / 100) * 100;
-    plan.savedAtMax = realisticMonthly * n;
-    plan.reachable = realisticMonthly >= plan.neededMonthly;
-    plan.shortfall = plan.reachable ? 0 : goal.amount - plan.savedAtMax;
+    plan.savedAtMax = totalSavable;
+    plan.reachable = totalSavable >= goal.amount;
+    plan.shortfall = plan.reachable ? 0 : goal.amount - totalSavable;
   }
   return plan;
 }

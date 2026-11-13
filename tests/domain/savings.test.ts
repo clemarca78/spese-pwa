@@ -32,7 +32,7 @@ describe('savingsPlan', () => {
     const p = savingsPlan(d, { amount: 60000, day: '2027-05-15' })!;
     expect(p.avgSurplus).toBeGreaterThan(45000);
     expect(p.avgSurplus).toBeLessThan(60000);
-    expect(p.realisticMonthly).toBeLessThanOrEqual(p.avgSurplus);
+    expect(p.totalSavable).toBeGreaterThanOrEqual(60000);
     expect(p.neededMonthly).toBe(10000);
     expect(p.reachable).toBe(true);
     expect(p.shortfall).toBe(0);
@@ -44,6 +44,25 @@ describe('savingsPlan', () => {
     // dopo la spesa restano 500 €: con 3+ versamenti già fatti il massimo cala
     expect(p.maxMonthly).toBeLessThan(16600);
     expect(p.maxMonthly).toBeGreaterThan(0);
+  });
+  it('escludere un mese toglie il suo avanzo dall’accantonamento', () => {
+    const d = base();
+    const rule = { variable: false, start: '2026-01-01', active: true };
+    d.rules = [
+      { ...rule, id: 'i', name: 'stipendio', kind: 'income', amount: 150000, rrule: 'FREQ=MONTHLY;BYMONTHDAY=5' },
+      { ...rule, id: 'u', name: 'affitto', kind: 'expense', amount: 100000, rrule: 'FREQ=MONTHLY;BYMONTHDAY=10' },
+    ];
+    const tutti = savingsPlan(d, { amount: 600000, day: '2027-05-15' })!.totalSavable;
+    d.settings.savingsSkipMonths = ['2026-12', '2027-01'];
+    const meno = savingsPlan(d, { amount: 600000, day: '2027-05-15' })!;
+    expect(meno.totalSavable).toBeLessThan(tutti);
+    expect(meno.monthRows.find((r) => r.month === '2026-12')?.included).toBe(false);
+  });
+  it('un mese in perdita non toglie nulla all’accantonato già messo da parte', () => {
+    const d = base();
+    d.oneOffs = [{ id: 'o', name: 'spesa', kind: 'expense', amount: 30000, day: '2027-02-10', paid: false }];
+    const p = savingsPlan(d, { amount: 10000, day: '2027-05-15' })!;
+    p.monthRows.reduce((prev, r) => { expect(r.cumulative).toBeGreaterThanOrEqual(prev); return r.cumulative; }, 0);
   });
   it('il margine abbassa il massimo accantonabile', () => {
     const d = base();

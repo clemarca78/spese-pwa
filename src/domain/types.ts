@@ -81,6 +81,8 @@ export interface Settings {
   salaryRuleId?: string;
   /** Somma da tenere sempre sul conto: il calcolo dell'accantonamento non scende sotto questa cifra. */
   savingsMargin?: Cents;
+  /** Mesi ('YYYY-MM') da non usare per accantonare. */
+  savingsSkipMonths?: string[];
 }
 export interface AppData {
   schemaVersion: 1;

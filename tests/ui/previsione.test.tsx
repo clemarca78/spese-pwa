@@ -118,7 +118,7 @@ describe('Previsione: valori finali', () => {
 describe('Accantonamento', () => {
   it('salva un obiettivo e mostra quanto serve al mese', async () => {
     const { getByLabelText, getByText, findByTestId, getByTestId } = render(<Previsione />);
-    expect(getByTestId('max-monthly').textContent).toContain('ti avanzano');
+    expect(getByTestId('max-monthly').textContent).toContain('Mese per mese');
     fireEvent.input(getByLabelText('Nome obiettivo'), { target: { value: 'Comunione' } });
     fireEvent.input(getByLabelText('Importo obiettivo'), { target: { value: '600' } });
     fireEvent.input(getByLabelText('Data obiettivo'), { target: { value: '2027-05-15' } });
@@ -149,5 +149,16 @@ describe('Margine sul conto', () => {
     expect(data.value.settings.savingsMargin).toBe(30000);
     fireEvent.input(getByLabelText('Margine sul conto'), { target: { value: '' } });
     expect(data.value.settings.savingsMargin).toBeUndefined();
+  });
+});
+
+describe('Mesi da cui accantonare', () => {
+  it('si toglie e si rimette la spunta di un mese', () => {
+    const { getAllByTestId, getByLabelText } = render(<Previsione />);
+    expect(getAllByTestId('saving-month').length).toBeGreaterThan(3);
+    fireEvent.click(getByLabelText('Accantona da dicembre 2026'));
+    expect(data.value.settings.savingsSkipMonths).toEqual(['2026-12']);
+    fireEvent.click(getByLabelText('Accantona da dicembre 2026'));
+    expect(data.value.settings.savingsSkipMonths).toBeUndefined();
   });
 });

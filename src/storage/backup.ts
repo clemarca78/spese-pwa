@@ -207,6 +207,7 @@ export function parseImport(text: string): AppData {
   if (st.payDay !== undefined && !(Number.isInteger(st.payDay) && (st.payDay as number) >= 1 && (st.payDay as number) <= 28)) fail('impostazioni: giorno dello stipendio non valido');
   if (st.salaryRuleId !== undefined && typeof st.salaryRuleId !== 'string') fail('impostazioni: regola dello stipendio non valida');
   if (st.savingsMargin !== undefined) int(st.savingsMargin, 'impostazioni');
+  if (st.savingsSkipMonths !== undefined && !(Array.isArray(st.savingsSkipMonths) && st.savingsSkipMonths.every((m) => typeof m === 'string' && /^\d{4}-\d{2}$/.test(m)))) fail('impostazioni: mesi non validi');
   if (typeof o.updatedAt !== 'string') fail('updatedAt mancante');
   return o as unknown as AppData;
 }

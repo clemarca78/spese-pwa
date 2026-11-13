@@ -48,8 +48,28 @@ function Accantonamento() {
       <label>Margine da tenere sempre sul conto <input aria-label="Margine sul conto" inputMode="decimal" value={margin} placeholder="0" onInput={(e) => saveMargin(e.currentTarget.value)} /></label>
       {plan ? (
         <div data-testid="max-monthly">
-          <p>{g ? 'Fino al ' + fmtDay(g.day) : 'Nei prossimi 6 mesi'}, in media, ti avanzano <strong>{formatEuro(plan.avgSurplus)}</strong> al mese (entrate meno uscite).</p>
-          <p>Importo realistico da accantonare: <strong>{formatEuro(plan.realisticMonthly)}</strong> al mese. Il massimo possibile senza scendere sotto {formatEuro(d.settings.savingsMargin ?? 0)} sul conto è {formatEuro(plan.maxMonthly)}.</p>
+          <p>Mese per mese ti avanza questo (entrate meno uscite previste). Togli la spunta ai mesi da cui non vuoi accantonare: l&apos;accantonato cresce solo con l&apos;avanzo dei mesi scelti.</p>
+          <ul class="items">
+            {plan.monthRows.map((r) => (
+              <li class="drop" key={r.month} data-testid="saving-month">
+                <label>
+                  <input type="checkbox" aria-label={`Accantona da ${monthLabel(r.month)}`} checked={r.included}
+                    onChange={(e) => {
+                      const on = e.currentTarget.checked;
+                      void mutate((x) => {
+                        const skip = new Set(x.settings.savingsSkipMonths ?? []);
+                        if (on) skip.delete(r.month); else skip.add(r.month);
+                        return { ...x, settings: { ...x.settings, savingsSkipMonths: skip.size ? [...skip].sort() : undefined } };
+                      });
+                    }} />{' '}
+                  {monthLabel(r.month).replace(/^(\p{L}{3})\p{L}*/u, '$1')}
+                </label>
+                <span class={r.net < 0 ? 'neg' : 'pos'}>{formatEuro(r.net)}</span>
+                <span class="muted">accantonato {formatEuro(r.cumulative)}</span>
+              </li>
+            ))}
+          </ul>
+          <p>Totale accantonabile {g ? 'entro il ' + fmtDay(g.day) : 'nei prossimi 6 mesi'}: <strong>{formatEuro(plan.totalSavable)}</strong>, senza scendere sotto {formatEuro(d.settings.savingsMargin ?? 0)} sul conto.</p>
         </div>
       ) : null}
       <div class="form">
@@ -64,11 +84,11 @@ function Accantonamento() {
       </div>
       {g && plan && plan.neededMonthly !== undefined ? (
         <div data-testid="goal-result">
-          <p>Per avere <strong>{formatEuro(g.amount)}</strong> per {g.name} entro il {fmtDay(g.day)} servono <strong>{formatEuro(plan.neededMonthly)}</strong> al mese per {plan.months} {plan.months === 1 ? 'mese' : 'mesi'}.</p>
+          <p>Per avere <strong>{formatEuro(g.amount)}</strong> per {g.name} entro il {fmtDay(g.day)} servirebbero in media <strong>{formatEuro(plan.neededMonthly)}</strong> al mese per {plan.months} {plan.months === 1 ? 'mese' : 'mesi'}.</p>
           {plan.reachable ? (
-            <p class="pos">Ce la fai: versando {formatEuro(plan.neededMonthly)} al mese resti sopra il margine e ti avanza in media di più.</p>
+            <p class="pos">Ce la fai: dai mesi scelti puoi mettere da parte {formatEuro(plan.totalSavable)}.</p>
           ) : (
-            <p class="neg">Non basta: versando l&apos;importo realistico ({formatEuro(plan.realisticMonthly)} al mese) metti da parte {formatEuro(plan.savedAtMax ?? 0)} e ne mancano {formatEuro(plan.shortfall ?? 0)}.</p>
+            <p class="neg">Non basta: dai mesi scelti metti da parte {formatEuro(plan.savedAtMax ?? 0)} e ne mancano {formatEuro(plan.shortfall ?? 0)}.</p>
           )}
         </div>
       ) : null}
