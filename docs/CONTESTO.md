@@ -46,3 +46,11 @@ Test: circa 312, in `tests/domain`, `tests/state`, `tests/storage`, `tests/ui`, 
 - Non verificato: sincronizzazione Drive su un dispositivo reale dopo la correzione OAuth; profilo Tasker Wallet con un pagamento vero; flusso Automate (blocchi scritti a memoria); uso su iPhone.
 - Da fare lato utente: impostare l'addebito automatico sulle regole rimaste; rimettere il filtro app Intesa nel profilo Tasker dopo i test; eliminare le spese di prova (BAR TEST).
 - Idee non richieste: accumulare più spese in un solo link per non aprire l'app a ogni pagamento; riepilogo per categoria nella Previsione.
+
+## Accantonamento (scheda in Previsione, aggiunta il 2026-11-13)
+Serve a mettere da parte soldi per un obiettivo (es. comunione, maggio 2027) senza obbligo di raggiungerlo.
+- `src/domain/savings.ts` (`savingsPlan`): per ogni mese calcola l'avanzo (entrate meno uscite previste, spese varie incluse). Con un obiettivo versa solo la quota dell'avanzo che serve ad avvicinarsi (ricerca binaria sulla quota); senza, o con obiettivo troppo alto, il massimo possibile. Il saldo previsto non scende mai sotto il margine.
+- Dati: `AppData.goal {name, amount, day}`; `settings.savingsMargin`, `settings.savingsSkipMonths` (mesi esclusi, 'YYYY-MM'), `settings.varieMonthly` (spese varie al mese scelte a mano, sostituisce la stima dai saldi).
+- Le spese varie si stimano dai saldi: con meno di 2 saldi il valore era 0 e i mesi risultavano troppo ricchi. Per questo c'è il campo "Spese varie al mese".
+- Le Impostazioni mostrano la data di compilazione (`__APP_BUILD__`, definita in `vite.config.ts`) per verificare l'aggiornamento della PWA sul telefono.
+- Confermato dall'utente: l'importo consigliato risulta sostenibile.
