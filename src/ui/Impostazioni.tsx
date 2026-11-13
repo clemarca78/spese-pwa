@@ -219,6 +219,10 @@ export function Impostazioni() {
           </button>
         )}
       </section>
+      <section class="card">
+        <h3>Versione dell&apos;app</h3>
+        <p data-testid="app-version">Compilata il {new Date(typeof __APP_BUILD__ === 'string' ? __APP_BUILD__ : Date.now()).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' })}</p>
+      </section>
 
       {message ? <p role={message.ok ? 'status' : 'alert'} class={message.ok ? 'pos' : 'neg'}>{message.text}</p> : null}
     </main>

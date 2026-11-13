@@ -157,3 +157,10 @@ describe('Impostazioni', () => {
     expect(data.value.settings.backupReminderDays).toBe(7);
   });
 });
+
+describe('versione', () => {
+  it('mostra quando è stata compilata l app', () => {
+    const r = render(<Impostazioni />);
+    expect(r.getByTestId('app-version').textContent).toMatch(/Compilata il \d/);
+  });
+});
