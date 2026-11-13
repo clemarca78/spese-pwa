@@ -17,11 +17,22 @@ describe('savingsPlan', () => {
     expect(p.months).toBe(6);
     expect(p.maxMonthly).toBe(16600); // 1.000 / 6 mesi, euro interi per difetto
     expect(p.neededMonthly).toBe(33400);
+    expect(p.avgSurplus).toBe(0); // nessuna entrata né uscita: non avanza nulla
+    expect(p.realisticMonthly).toBe(0); // il saldo da solo non è un risparmio mensile
     expect(p.reachable).toBe(false);
-    expect(p.shortfall).toBe(200000 - 16600 * 6);
+    expect(p.shortfall).toBe(200000);
   });
-  it('un obiettivo piccolo è raggiungibile', () => {
-    const p = savingsPlan(base(), { amount: 60000, day: '2027-05-15' })!;
+  it('un obiettivo piccolo è raggiungibile quando ogni mese avanza qualcosa', () => {
+    const d = base();
+    const rule = { variable: false, start: '2026-01-01', active: true };
+    d.rules = [
+      { ...rule, id: 'i', name: 'stipendio', kind: 'income', amount: 150000, rrule: 'FREQ=MONTHLY;BYMONTHDAY=5' },
+      { ...rule, id: 'u', name: 'affitto', kind: 'expense', amount: 100000, rrule: 'FREQ=MONTHLY;BYMONTHDAY=10' },
+    ];
+    const p = savingsPlan(d, { amount: 60000, day: '2027-05-15' })!;
+    expect(p.avgSurplus).toBeGreaterThan(45000);
+    expect(p.avgSurplus).toBeLessThan(60000);
+    expect(p.realisticMonthly).toBeLessThanOrEqual(p.avgSurplus);
     expect(p.neededMonthly).toBe(10000);
     expect(p.reachable).toBe(true);
     expect(p.shortfall).toBe(0);
@@ -33,6 +44,12 @@ describe('savingsPlan', () => {
     // dopo la spesa restano 500 €: con 3+ versamenti già fatti il massimo cala
     expect(p.maxMonthly).toBeLessThan(16600);
     expect(p.maxMonthly).toBeGreaterThan(0);
+  });
+  it('il margine abbassa il massimo accantonabile', () => {
+    const d = base();
+    const senza = savingsPlan(d, { amount: 60000, day: '2027-05-15' })!.maxMonthly;
+    d.settings.savingsMargin = 30000;
+    expect(savingsPlan(d, { amount: 60000, day: '2027-05-15' })!.maxMonthly).toBeLessThan(senza);
   });
   it('un saldo che va in negativo non permette di accantonare nulla', () => {
     const d = base(10000);

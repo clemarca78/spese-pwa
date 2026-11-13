@@ -79,6 +79,8 @@ export interface Settings {
   payDay?: number;
   /** Regola di entrata dello stipendio: se scelta, il riferimento di "Usabile" è la sua prossima occorrenza non ancora arrivata. */
   salaryRuleId?: string;
+  /** Somma da tenere sempre sul conto: il calcolo dell'accantonamento non scende sotto questa cifra. */
+  savingsMargin?: Cents;
 }
 export interface AppData {
   schemaVersion: 1;

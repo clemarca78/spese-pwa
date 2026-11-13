@@ -118,7 +118,7 @@ describe('Previsione: valori finali', () => {
 describe('Accantonamento', () => {
   it('salva un obiettivo e mostra quanto serve al mese', async () => {
     const { getByLabelText, getByText, findByTestId, getByTestId } = render(<Previsione />);
-    expect(getByTestId('max-monthly').textContent).toContain('al massimo');
+    expect(getByTestId('max-monthly').textContent).toContain('ti avanzano');
     fireEvent.input(getByLabelText('Nome obiettivo'), { target: { value: 'Comunione' } });
     fireEvent.input(getByLabelText('Importo obiettivo'), { target: { value: '600' } });
     fireEvent.input(getByLabelText('Data obiettivo'), { target: { value: '2027-05-15' } });
@@ -139,5 +139,15 @@ describe('Accantonamento', () => {
     fireEvent.click(getByText('Salva obiettivo'));
     expect(getByRole('alert').textContent).toMatch(/dopo il giorno del saldo/i);
     expect(data.value.goal).toBeUndefined();
+  });
+});
+
+describe('Margine sul conto', () => {
+  it('il margine si salva nelle impostazioni', () => {
+    const { getByLabelText } = render(<Previsione />);
+    fireEvent.input(getByLabelText('Margine sul conto'), { target: { value: '300' } });
+    expect(data.value.settings.savingsMargin).toBe(30000);
+    fireEvent.input(getByLabelText('Margine sul conto'), { target: { value: '' } });
+    expect(data.value.settings.savingsMargin).toBeUndefined();
   });
 });

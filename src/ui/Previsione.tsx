@@ -22,6 +22,13 @@ function Accantonamento() {
   const [amount, setAmount] = useState(g ? String(g.amount / 100).replace('.', ',') : '');
   const [day, setDay] = useState(g?.day ?? '');
   const [err, setErr] = useState('');
+  const [margin, setMargin] = useState(d.settings.savingsMargin ? String(d.settings.savingsMargin / 100).replace('.', ',') : '');
+  const saveMargin = (v: string) => {
+    setMargin(v);
+    const c = v.trim() === '' ? 0 : parseEuro(v);
+    if (c === null || c < 0) return;
+    void mutate((x) => ({ ...x, settings: { ...x.settings, savingsMargin: c || undefined } }));
+  };
   const plan = savingsPlan(d, g ? { amount: g.amount, day: g.day } : undefined);
   const save = () => {
     const cents = parseEuro(amount);
@@ -36,12 +43,14 @@ function Accantonamento() {
   return (
     <section class="card" aria-label="Accantonamento">
       <h3>Accantonamento</h3>
-      <p class="muted">Quanto puoi mettere da parte ogni mese senza andare sotto zero, tenendo conto di regole, voci previste{d.settings.varieEnabled ? ' e spese varie stimate' : ''}.</p>
+      <p class="muted">Quanto ti avanza davvero ogni mese (entrate meno uscite) e quanto puoi mettere da parte senza scendere sotto il margine, tenendo conto di regole, voci previste{d.settings.varieEnabled ? ' e spese varie stimate' : ''}.</p>
       {!d.settings.varieEnabled ? <p class="muted">Le spese varie (cibo e altro) non sono incluse: attiva &quot;Spese varie stimate&quot; qui sopra per un calcolo più prudente.</p> : null}
+      <label>Margine da tenere sempre sul conto <input aria-label="Margine sul conto" inputMode="decimal" value={margin} placeholder="0" onInput={(e) => saveMargin(e.currentTarget.value)} /></label>
       {plan ? (
-        <p data-testid="max-monthly">
-          {g ? 'Fino al ' + fmtDay(g.day) : 'Nei prossimi 6 mesi'} puoi accantonare al massimo <strong>{formatEuro(plan.maxMonthly)}</strong> al mese.
-        </p>
+        <div data-testid="max-monthly">
+          <p>{g ? 'Fino al ' + fmtDay(g.day) : 'Nei prossimi 6 mesi'}, in media, ti avanzano <strong>{formatEuro(plan.avgSurplus)}</strong> al mese (entrate meno uscite).</p>
+          <p>Importo realistico da accantonare: <strong>{formatEuro(plan.realisticMonthly)}</strong> al mese. Il massimo possibile senza scendere sotto {formatEuro(d.settings.savingsMargin ?? 0)} sul conto è {formatEuro(plan.maxMonthly)}.</p>
+        </div>
       ) : null}
       <div class="form">
         <label>Obiettivo <input aria-label="Nome obiettivo" value={name} placeholder="Comunione" onInput={(e) => setName(e.currentTarget.value)} /></label>
@@ -57,9 +66,9 @@ function Accantonamento() {
         <div data-testid="goal-result">
           <p>Per avere <strong>{formatEuro(g.amount)}</strong> per {g.name} entro il {fmtDay(g.day)} servono <strong>{formatEuro(plan.neededMonthly)}</strong> al mese per {plan.months} {plan.months === 1 ? 'mese' : 'mesi'}.</p>
           {plan.reachable ? (
-            <p class="pos">Ce la fai: versando {formatEuro(plan.neededMonthly)} al mese il saldo previsto non va sotto zero.</p>
+            <p class="pos">Ce la fai: versando {formatEuro(plan.neededMonthly)} al mese resti sopra il margine e ti avanza in media di più.</p>
           ) : (
-            <p class="neg">Non basta: versando il massimo ({formatEuro(plan.maxMonthly)} al mese) metti da parte {formatEuro(plan.savedAtMax ?? 0)} e ne mancano {formatEuro(plan.shortfall ?? 0)}.</p>
+            <p class="neg">Non basta: versando l&apos;importo realistico ({formatEuro(plan.realisticMonthly)} al mese) metti da parte {formatEuro(plan.savedAtMax ?? 0)} e ne mancano {formatEuro(plan.shortfall ?? 0)}.</p>
           )}
         </div>
       ) : null}
