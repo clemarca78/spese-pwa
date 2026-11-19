@@ -28,6 +28,14 @@ const catName = (id: string | undefined): string | undefined => (id ? (data.valu
 const shortDate = (d: string) => `${d.slice(8)}/${d.slice(5, 7)}`;
 /** id della voce una tantum in modifica (null = modulo di aggiunta) */
 export const editingOneOff = signal<string | null>(null);
+/** Modulo di aggiunta aperto o chiuso (in alto, sotto il riepilogo). */
+export const addOpen = signal(false);
+/** Giorni aperti/chiusi a mano dall'utente (chiave = 'YYYY-MM-DD'); gli altri seguono la regola predefinita. */
+const dayOpen = signal<Record<string, boolean>>({});
+const WEEKDAYS = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];
+const dayLabel = (d: Day) => `${WEEKDAYS[new Date(`${d}T00:00:00Z`).getUTCDay()]} ${shortDate(d)}`;
+/** Giorni passati con tutto sistemato si chiudono da soli: restano aperti oggi, il futuro e le voci ancora da pagare. */
+const defaultOpen = (day: Day, list: Item[], today: Day) => day >= today || list.some((i) => !i.paid && !i.skipped);
 
 const plain = (c: number) => (c / 100).toFixed(2).replace('.', ',');
 
@@ -191,13 +199,14 @@ function AddOneOff() {
   // modificando una voce il modulo sta in fondo alla pagina: lo porto in vista e metto il cursore sul nome
   useEffect(() => {
     if (!editing) return;
-    formRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    addOpen.value = true;
+    formRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
     nameRef.current?.focus();
   }, []);
   return (
     <form
       ref={formRef}
-      class="card"
+      class="card add-form"
       onSubmit={(e) => {
         e.preventDefault();
         if (!name.trim() || cents === null) return;
@@ -205,6 +214,7 @@ function AddOneOff() {
           const stamp = paid === editing.paid ? {} : paid ? paidStamp() : { paidOn: undefined, paidAt: undefined };
           void updateOneOff(editing.id, { name: name.trim(), kind, amount: cents, day, paid, categoryId: categoryId || undefined, ...stamp });
           editingOneOff.value = null;
+          addOpen.value = false;
           return;
         }
         void addOneOff({ name: name.trim(), kind, amount: cents, day, paid, ...(categoryId ? { categoryId } : {}), ...(paid ? paidStamp() : {}) }).then(() => {
@@ -212,6 +222,7 @@ function AddOneOff() {
           setAlreadyPaid(false);
           setName('');
           setAmount('');
+          addOpen.value = false;
         });
       }}
     >
@@ -255,6 +266,12 @@ export function Mese() {
   const res = residual(d, today, today);
   const av = available(d, today, d.settings.payDay ?? 10);
   const debitsTotal = av ? av.debits.reduce((s, i) => s + i.amount, 0) : 0;
+  const groups: Array<{ day: Day; list: Item[] }> = [];
+  for (const i of items) {
+    const last = groups.at(-1);
+    if (last && last.day === i.day) last.list.push(i);
+    else groups.push({ day: i.day, list: [i] });
+  }
   const late = viewMonth.value === today.slice(0, 7) && (filtro.value === 'tutte' || filtro.value === 'da-pagare') ? arretrati(d, start).filter(byCategory) : [];
   const year = viewMonth.value.slice(0, 4);
   const totals = totalsByCategory(d, periodoTotali.value === 'mese' ? start : `${year}-01-01`, periodoTotali.value === 'mese' ? end : `${year}-12-31`);
@@ -347,6 +364,11 @@ export function Mese() {
         </section>
       )}
 
+      <details class="card add-card" open={addOpen.value || editingOneOff.value !== null} onToggle={(e) => { if (editingOneOff.value === null) addOpen.value = e.currentTarget.open; }}>
+        <summary>{editingOneOff.value !== null ? 'Modifica la voce' : '+ Aggiungi una voce'}</summary>
+        <AddOneOff key={editingOneOff.value ?? 'new'} />
+      </details>
+
       <div class="row filters" role="group" aria-label="Filtro voci">
         {FILTRI.map(([v, l]) => (
           <button key={v} class={`chip ${filtro.value === v ? 'active' : ''}`} aria-pressed={filtro.value === v} onClick={() => (filtro.value = v)}>{l}</button>
@@ -369,12 +391,33 @@ export function Mese() {
         </section>
       ) : null}
 
-      <ul class="items">
-        {items.map((i) => (
-          <ItemRow key={i.key} item={i} />
-        ))}
-        {items.length === 0 ? <li class="empty">{all.length === 0 ? 'Nessuna voce in questo mese.' : 'Nessuna voce con questo filtro.'}</li> : null}
-      </ul>
+      {groups.length > 1 ? (
+        <div class="row day-tools">
+          <button class="link" onClick={() => (dayOpen.value = Object.fromEntries(groups.map((g) => [g.day, true])))}>Espandi tutti i giorni</button>
+          <button class="link" onClick={() => (dayOpen.value = Object.fromEntries(groups.map((g) => [g.day, false])))}>Comprimi tutti i giorni</button>
+        </div>
+      ) : null}
+      {groups.map((g) => {
+        const net = g.list.reduce((t, i) => (i.skipped ? t : t + (i.kind === 'income' ? i.amount : -i.amount)), 0);
+        const isOpen = dayOpen.value[g.day] ?? defaultOpen(g.day, g.list, today);
+        return (
+          <details class="day-group" key={g.day} open={isOpen} data-testid="day-group"
+            onToggle={(e) => {
+              const o = e.currentTarget.open;
+              if (o !== isOpen) dayOpen.value = { ...dayOpen.value, [g.day]: o };
+            }}>
+            <summary>
+              <span class="day-name">{dayLabel(g.day)}{g.day === today ? ' · oggi' : ''}</span>
+              <span class="muted">{g.list.length} {g.list.length === 1 ? 'voce' : 'voci'}</span>
+              <span class={net < 0 ? 'neg' : 'pos'}>{formatEuro(net)}</span>
+            </summary>
+            <ul class="items">
+              {g.list.map((i) => <ItemRow key={i.key} item={i} />)}
+            </ul>
+          </details>
+        );
+      })}
+      {items.length === 0 ? <p class="empty">{all.length === 0 ? 'Nessuna voce in questo mese.' : 'Nessuna voce con questo filtro.'}</p> : null}
 
       <details class="card cat-totals">
         <summary>Totali per categoria</summary>
@@ -403,7 +446,7 @@ export function Mese() {
         ) : null}
       </details>
 
-      <AddOneOff key={editingOneOff.value ?? 'new'} />
+      <button class="fab" aria-label="Aggiungi una voce" onClick={() => { addOpen.value = true; window.scrollTo?.({ top: 0, behavior: 'smooth' }); }}>+</button>
     </main>
   );
 }

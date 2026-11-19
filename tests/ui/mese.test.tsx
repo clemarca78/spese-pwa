@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render } from '@testing-library/preact';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { addBalance, data } from '../../src/state/store';
-import { Mese, filtro, viewMonth } from '../../src/ui/Mese';
+import { Mese, addOpen, filtro, viewMonth } from '../../src/ui/Mese';
 import { emptyData } from '../../src/storage/backup';
 import { addDays, todayLocal } from '../../src/domain/days';
 
@@ -503,5 +503,50 @@ describe('Come si calcola Usabile', () => {
     expect(t).toContain('1.000,00');
     expect(t).toContain('dentista');
     expect(t).toMatch(/Usabile/);
+  });
+});
+
+describe('Elenco per giorno e aggiunta rapida', () => {
+  function setupDays() {
+    const d = emptyData();
+    const day = todayLocal();
+    const old = day.slice(0, 7) + '-01';
+    d.balances = [{ value: 100000, day: old }];
+    d.oneOffs = [
+      { id: 'a', name: 'vecchia', kind: 'expense', amount: 1000, day: old, paid: true, paidOn: old, paidAt: old + 'T10:00:00.000Z' },
+      { id: 'b', name: 'oggi uno', kind: 'expense', amount: 500, day, paid: false },
+      { id: 'c', name: 'oggi due', kind: 'income', amount: 2000, day, paid: false },
+    ];
+    data.value = d;
+    viewMonth.value = day.slice(0, 7);
+    addOpen.value = false;
+  }
+  it('raggruppa le voci per giorno con conteggio e totale, e il giorno si chiude', () => {
+    setupDays();
+    const { getAllByTestId } = render(<Mese />);
+    const groups = getAllByTestId('day-group') as HTMLDetailsElement[];
+    const today = groups.find((g) => /oggi/.test(g.textContent ?? ''));
+    if (todayLocal().endsWith('-01')) return; // il primo del mese coincide con la voce vecchia
+    expect(today?.textContent).toContain('2 voci');
+    expect(today?.open).toBe(true);
+    const old = groups.find((g) => g.textContent?.includes('vecchia'));
+    expect(old?.open).toBe(false); // passato e già tutto pagato
+  });
+  it('Comprimi ed Espandi tutti i giorni', () => {
+    setupDays();
+    const { getAllByTestId, getByText } = render(<Mese />);
+    if (todayLocal().endsWith('-01')) return;
+    fireEvent.click(getByText('Comprimi tutti i giorni'));
+    expect((getAllByTestId('day-group') as HTMLDetailsElement[]).every((g) => !g.open)).toBe(true);
+    fireEvent.click(getByText('Espandi tutti i giorni'));
+    expect((getAllByTestId('day-group') as HTMLDetailsElement[]).every((g) => g.open)).toBe(true);
+  });
+  it('il pulsante + apre il modulo di aggiunta in alto', () => {
+    setupDays();
+    const { getByLabelText, container } = render(<Mese />);
+    const add = container.querySelector('details.add-card') as HTMLDetailsElement;
+    expect(add.open).toBe(false);
+    fireEvent.click(getByLabelText('Aggiungi una voce', { selector: 'button' }));
+    expect(add.open).toBe(true);
   });
 });

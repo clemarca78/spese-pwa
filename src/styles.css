@@ -152,3 +152,15 @@ small.cat { color: var(--muted); }
 .capture:last-child { border-bottom: 0; }
 .capture p { margin: 0 0 4px; font-size: .85rem; }
 .link-box { display: block; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); word-break: break-all; font-size: .8rem; }
+
+.add-card { padding: 0 14px; }
+.add-card > summary { cursor: pointer; padding: 12px 0; font-weight: 600; color: var(--accent); }
+.add-card .add-form { box-shadow: none; border: 0; padding: 0 0 12px; margin: 0; background: none; }
+.day-group { border-bottom: 1px solid var(--line); }
+.day-group > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: 10px; padding: 10px 0; font-variant-numeric: tabular-nums; }
+.day-group > summary::-webkit-details-marker { display: none; }
+.day-group > summary::before { content: '▸'; color: var(--muted); }
+.day-group[open] > summary::before { content: '▾'; }
+.day-name { font-weight: 600; text-transform: capitalize; flex: 1; }
+.day-tools { justify-content: flex-end; gap: 16px; }
+.fab { position: fixed; right: 16px; bottom: calc(72px + env(safe-area-inset-bottom)); width: 56px; height: 56px; border-radius: 50%; font-size: 2rem; line-height: 1; background: var(--accent); color: #fff; border: 0; box-shadow: 0 2px 8px rgba(0,0,0,.3); z-index: 5; }
