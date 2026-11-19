@@ -310,6 +310,36 @@ export function Mese() {
             <small>Usabile fino al {av ? av.upTo.split('-').reverse().slice(0, 2).join('/') : ''}</small>
             <strong class="big" data-testid="disponibile">{formatEuro(av?.value ?? 0)}</strong>
           </div>
+          {av ? (
+            <details class="how" data-testid="come-si-calcola">
+              <summary>Come si calcola &quot;Usabile&quot;?</summary>
+              <ol>
+                <li>Parti dal <strong>saldo</strong> che hai inserito: {formatEuro(bal.value)} al {bal.day.split('-').reverse().join('/')}.</li>
+                <li>Aggiungi o togli ciò che hai <strong>segnato come pagato o incassato dopo</strong> quel saldo ({(res ?? 0) - bal.value >= 0 ? '+' : '−'}{formatEuro(Math.abs((res ?? 0) - bal.value))}). Ottieni <strong>Sul conto (stimato)</strong>: {formatEuro(res ?? 0)}.</li>
+                <li>Togli le <strong>uscite ancora da pagare</strong> con scadenza dopo il saldo e prima del {av.upTo.split('-').reverse().join('/')}: −{formatEuro(debitsTotal)}.</li>
+                <li>Il risultato è <strong>Usabile</strong>: {formatEuro(av.value)}. È quanto puoi spendere senza andare in negativo prima di quella data.</li>
+              </ol>
+              <p class="muted">
+                {d.settings.salaryRuleId && d.rules.some((r) => r.id === d.settings.salaryRuleId)
+                  ? 'La data è quella della prossima entrata della regola dello stipendio che hai scelto nelle Impostazioni: da lì in poi arrivano nuovi soldi.'
+                  : `La data è il giorno ${d.settings.payDay ?? 10} del mese, impostato come "Data di riferimento" nelle Impostazioni: da lì in poi arrivano nuovi soldi.`}
+                {' '}Le entrate previste non vengono sommate finché non risultano incassate, e le uscite con addebito automatico entrano già nel saldo quando scatta la data.
+              </p>
+              {av.debits.length > 0 ? (
+                <>
+                  <p><strong>Uscite da pagare considerate</strong></p>
+                  <ul class="items">
+                    {av.debits.map((i) => (
+                      <li class="drop" key={i.key}>
+                        <span>{i.day.split('-').reverse().join('/').slice(0, 5)} {i.name}</span>
+                        <span class="neg">−{formatEuro(i.amount)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : <p class="muted">Nessuna uscita da pagare in questo periodo.</p>}
+            </details>
+          ) : null}
           <details>
             <summary>Aggiorna saldo</summary>
             <BalanceForm label="Aggiorna" />

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { addBalance, data } from '../../src/state/store';
 import { Mese, filtro, viewMonth } from '../../src/ui/Mese';
 import { emptyData } from '../../src/storage/backup';
+import { addDays, todayLocal } from '../../src/domain/days';
 
 const tid = (c: Element, id: string) => c.querySelector(`[data-testid="${id}"]`)?.textContent ?? '';
 const text = (c: Element) => (c.textContent ?? '').replace(/[  ]/g, ' ');
@@ -487,5 +488,20 @@ describe('Mese', () => {
     data.value = { ...data.value, settings: { ...data.value.settings, lastBackupAt: undefined } };
     const { getByText } = render(<Mese />);
     expect(getByText(/backup/i)).toBeTruthy();
+  });
+});
+
+describe('Come si calcola Usabile', () => {
+  it('spiega i passaggi con i numeri e elenca le uscite da pagare', () => {
+    const d = emptyData();
+    const day = todayLocal();
+    d.balances = [{ value: 100000, day: addDays(day, -2) }];
+    d.oneOffs = [{ id: 'x', name: 'dentista', kind: 'expense', amount: 20000, day, paid: false }];
+    data.value = d;
+    const { getByTestId } = render(<Mese />);
+    const t = (getByTestId('come-si-calcola').textContent ?? '').replace(/ /g, ' ');
+    expect(t).toContain('1.000,00');
+    expect(t).toContain('dentista');
+    expect(t).toMatch(/Usabile/);
   });
 });
