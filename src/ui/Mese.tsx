@@ -84,6 +84,7 @@ function ItemRow({ item, arretrato }: { item: Item; arretrato?: boolean }) {
         {item.estimated ? <small> stima</small> : null}
         {item.autoDebit ? <small> {item.kind === 'income' ? 'accredito' : 'addebito'} automatico</small> : null}
         {catName(item.categoryId) ? <small class="cat"> · <span>{catName(item.categoryId)}</span></small> : null}
+        {item.note ? <small class="note" data-testid="item-note">{item.note}</small> : null}
       </span>
       {item.locked ? (
         <span class="amount static">{plain(item.amount)}</span>
@@ -193,6 +194,7 @@ function AddOneOff() {
   const [kind, setKind] = useState<Kind>(editing?.kind ?? 'expense');
   const [paid, setAlreadyPaid] = useState(editing?.paid ?? false);
   const [categoryId, setCategoryId] = useState(editing?.categoryId ?? '');
+  const [note, setNote] = useState(editing?.note ?? '');
   const cents = parseEuro(amount);
   const formRef = useRef<HTMLFormElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -212,13 +214,14 @@ function AddOneOff() {
         if (!name.trim() || cents === null) return;
         if (editing) {
           const stamp = paid === editing.paid ? {} : paid ? paidStamp() : { paidOn: undefined, paidAt: undefined };
-          void updateOneOff(editing.id, { name: name.trim(), kind, amount: cents, day, paid, categoryId: categoryId || undefined, ...stamp });
+          void updateOneOff(editing.id, { name: name.trim(), kind, amount: cents, day, paid, categoryId: categoryId || undefined, note: note.trim() || undefined, ...stamp });
           editingOneOff.value = null;
           addOpen.value = false;
           return;
         }
-        void addOneOff({ name: name.trim(), kind, amount: cents, day, paid, ...(categoryId ? { categoryId } : {}), ...(paid ? paidStamp() : {}) }).then(() => {
+        void addOneOff({ name: name.trim(), kind, amount: cents, day, paid, ...(categoryId ? { categoryId } : {}), ...(note.trim() ? { note: note.trim() } : {}), ...(paid ? paidStamp() : {}) }).then(() => {
           setCategoryId('');
+          setNote('');
           setAlreadyPaid(false);
           setName('');
           setAmount('');
@@ -238,6 +241,9 @@ function AddOneOff() {
             {(data.value.categories ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </label>
+      </div>
+      <div class="row">
+        <input placeholder="Descrizione (facoltativa)" aria-label="Descrizione voce" value={note} onInput={(e) => setNote(e.currentTarget.value)} />
       </div>
       <div class="row">
         <input type="date" aria-label="Data voce" value={day} onInput={(e) => setDay(e.currentTarget.value)} />

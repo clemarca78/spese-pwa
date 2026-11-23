@@ -99,6 +99,7 @@ function checkRule(r: unknown): Rule {
   if (typeof o.variable !== 'boolean' || typeof o.active !== 'boolean') fail('regola incompleta');
   if (o.categoryId !== undefined && typeof o.categoryId !== 'string') fail(`regola ${name}: categoria non valida`);
   if (o.groupId !== undefined && typeof o.groupId !== 'string') fail(`regola ${name}: gruppo non valido`);
+  if (o.note !== undefined && typeof o.note !== 'string') fail(`regola ${name}: descrizione non valida`);
   if (o.autoDebit !== undefined && typeof o.autoDebit !== 'boolean') fail(`regola ${name}: addebito automatico non valido`);
   if (o.monthAmounts !== undefined) {
     const m = obj(o.monthAmounts, `regola ${name}: importi per mese`);
@@ -178,6 +179,7 @@ export function parseImport(text: string): AppData {
     if (x.paidOn !== undefined) day(x.paidOn, 'voce');
     if (x.paidAt !== undefined && typeof x.paidAt !== 'string') fail('voce non valida');
     if (x.categoryId !== undefined && typeof x.categoryId !== 'string') fail('voce non valida');
+    if (x.note !== undefined && typeof x.note !== 'string') fail('voce non valida');
   });
   arr(o.balances, 'saldi').forEach((v) => {
     const x = obj(v, 'saldo');

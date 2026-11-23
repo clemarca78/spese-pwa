@@ -21,6 +21,8 @@ export interface Rule {
   groupId?: string;
   /** Per cosa sono i soldi (vedi AppData.categories). Indipendente dal gruppo. */
   categoryId?: string;
+  /** Descrizione libera (facoltativa). */
+  note?: string;
 }
 export interface Category {
   id: string;
@@ -63,6 +65,8 @@ export interface OneOff {
   paidOn?: Day;
   paidAt?: string;
   categoryId?: string;
+  /** Descrizione libera (facoltativa). */
+  note?: string;
 }
 export interface Balance {
   value: Cents;
@@ -129,6 +133,7 @@ export interface Item {
   skipped: boolean;
   autoDebit?: boolean;
   categoryId?: string;
+  note?: string;
   /** Importo fisso (regola non variabile o voce inserita): non si modifica dall'elenco. */
   locked?: boolean;
 }

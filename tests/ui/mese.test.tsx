@@ -397,6 +397,21 @@ describe('Mese', () => {
       expect(data.value.oneOffs.find((o) => o.name === 'pieno')?.categoryId).toBe('c-carb');
       expect(getAllByText('Carburante').length).toBeGreaterThan(0);
     });
+    it('la descrizione si salva, si mostra e si può modificare', () => {
+      withCats();
+      const { getByLabelText, getByText, getByTestId } = render(<Mese />);
+      fireEvent.input(getByLabelText('Nome voce'), { target: { value: 'pieno' } });
+      fireEvent.input(getByLabelText('Importo voce'), { target: { value: '40,00' } });
+      fireEvent.input(getByLabelText('Descrizione voce'), { target: { value: 'viaggio al mare' } });
+      fireEvent.click(getByText('Aggiungi'));
+      expect(data.value.oneOffs.find((o) => o.name === 'pieno')?.note).toBe('viaggio al mare');
+      expect(getByTestId('item-note').textContent).toBe('viaggio al mare');
+      fireEvent.click(getByLabelText('Modifica: pieno'));
+      expect((getByLabelText('Descrizione voce') as HTMLInputElement).value).toBe('viaggio al mare');
+      fireEvent.input(getByLabelText('Descrizione voce'), { target: { value: '' } });
+      fireEvent.click(getByText('Salva modifiche'));
+      expect(data.value.oneOffs.find((o) => o.name === 'pieno')?.note).toBeUndefined();
+    });
     it('Modifica riapre la categoria e permette di toglierla', () => {
       withCats();
       const { getByLabelText, getByText } = render(<Mese />);

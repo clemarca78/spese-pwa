@@ -45,6 +45,7 @@ export function Regole() {
   const [groupId, setGroupId] = useState('');
   const [groupTouched, setGroupTouched] = useState(false);
   const [categoryId, setCategoryId] = useState('');
+  const [note, setNote] = useState('');
   const [newGroup, setNewGroup] = useState('');
   const [groupError, setGroupError] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -62,13 +63,13 @@ export function Regole() {
   })();
 
   function reset() {
-    setEditingId(null); setName(''); setAmount(''); setVariable(false); setAutoDebit(false); setPerMonth(false); setMonthVals({}); setKind('expense'); setGroupId(''); setGroupTouched(false); setCategoryId('');
+    setEditingId(null); setName(''); setAmount(''); setVariable(false); setAutoDebit(false); setPerMonth(false); setMonthVals({}); setKind('expense'); setGroupId(''); setGroupTouched(false); setCategoryId(''); setNote('');
     setSpec(EMPTY_SPEC); setStart(todayLocal()); setEnd(''); setError(null); setView('list');
   }
 
   function edit(r: Rule) {
     setEditingId(r.id); setName(r.name); setKind(r.kind);
-    setAmount((r.amount / 100).toFixed(2).replace('.', ',')); setVariable(r.variable); setAutoDebit(r.autoDebit ?? false); setGroupId(r.groupId ?? ''); setGroupTouched(true); setCategoryId(r.categoryId ?? '');
+    setAmount((r.amount / 100).toFixed(2).replace('.', ',')); setVariable(r.variable); setAutoDebit(r.autoDebit ?? false); setGroupId(r.groupId ?? ''); setGroupTouched(true); setCategoryId(r.categoryId ?? ''); setNote(r.note ?? '');
     setPerMonth(!!r.monthAmounts);
     setMonthVals(Object.fromEntries(Object.entries(r.monthAmounts ?? {}).map(([m, c]) => [Number(m), (c / 100).toFixed(2).replace('.', ',')])));
     setSpec(parseRrule(r.rrule)); setStart(r.start); setEnd(r.end ?? ''); setError(null); setView('form');
@@ -93,6 +94,7 @@ export function Regole() {
       rrule: buildRrule(spec), start, ...(end ? { end } : {}), active: true,
       ...(autoDebit ? { autoDebit: true } : {}),
       ...(monthAmounts ? { monthAmounts } : {}),
+      ...(note.trim() ? { note: note.trim() } : {}),
       ...(categoryId && (data.value.categories ?? []).some((c) => c.id === categoryId) ? { categoryId } : {}),
       ...(effectiveGroup && known.has(effectiveGroup) ? { groupId: effectiveGroup } : {}),
     };
@@ -214,6 +216,7 @@ export function Regole() {
                   <span class="name">
                     {r.name}
                     <small> {r.monthAmounts ? 'importi per mese' : formatEuro(r.amount)}{r.variable ? ' (variabile)' : ''}{r.autoDebit ? ` · ${r.kind === 'income' ? 'accredito' : 'addebito'} automatico` : ''}{r.categoryId && (data.value.categories ?? []).find((c) => c.id === r.categoryId) ? ` · ${(data.value.categories ?? []).find((c) => c.id === r.categoryId)?.name}` : ''}{nextDates(r, 1)[0] ? ` · prossima ${fmtDay(nextDates(r, 1)[0])}` : ''}</small>
+                    {r.note ? <small class="note" data-testid="rule-note">{r.note}</small> : null}
                   </span>
                   <span class="actions">
                     <select class="move" aria-label={`Gruppo di ${r.name}`} value={r.groupId && known.has(r.groupId) ? r.groupId : ''}
@@ -256,6 +259,9 @@ export function Regole() {
         <div class="row">
           <input aria-label="Nome regola" placeholder="Nome" value={name} onInput={(e) => setName(e.currentTarget.value)} />
           <input aria-label="Importo regola" inputMode="decimal" placeholder="Importo" value={amount} onInput={(e) => setAmount(e.currentTarget.value)} />
+        </div>
+        <div class="row">
+          <input aria-label="Descrizione regola" placeholder="Descrizione (facoltativa)" value={note} onInput={(e) => setNote(e.currentTarget.value)} />
         </div>
         <div class="row">
           <select aria-label="Tipo regola" value={kind} onChange={(e) => setKind(e.currentTarget.value as Kind)}>
