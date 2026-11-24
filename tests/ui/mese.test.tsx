@@ -197,6 +197,17 @@ describe('Mese', () => {
     expect(queryByText('Palestra')).toBeTruthy(); // non automatica: resta finché non la spunti
     expect(tid(container, 'residuo')).toContain('1.675,91'); // 1.500,00 - 27,89 + 203,80
   });
+  it('la voce automatica che scade oggi resta in elenco con la spunta, da domani sparisce', () => {
+    const d = emptyData();
+    d.balances = [{ value: 150000, day: '2026-11-03' }];
+    d.settings.lastBackupAt = new Date().toISOString();
+    d.rules = [{ id: 'oggi', name: 'Rata', kind: 'expense', amount: 5000, variable: false, rrule: 'FREQ=MONTHLY;BYMONTHDAY=20', start: '2026-11-01', active: true, autoDebit: true }];
+    data.value = d;
+    const { queryByText, container } = render(<Mese />); // oggi: 20/11
+    expect(queryByText('Rata')).toBeTruthy();
+    expect(container.querySelector('[role="img"][aria-label="Pagata"]')).toBeTruthy();
+    expect(tid(container, 'residuo')).toContain('1.450,00');
+  });
   it('una spesa aggiunta come Già pagata scala sempre dal conto, anche con data prima del saldo, e non ha la casella', () => {
     withBalance(); // saldo 1.500,00 al 03/11
     const { getByLabelText, getByText, container, queryByLabelText } = render(<Mese />);

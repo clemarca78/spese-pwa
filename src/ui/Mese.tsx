@@ -64,7 +64,7 @@ function ItemRow({ item, arretrato }: { item: Item; arretrato?: boolean }) {
   const label = arretrato ? `${item.name} ${fullDate}` : item.name;
   return (
     <li class={`item dated ${arretrato ? 'late' : ''} ${item.kind} ${item.paid ? 'done' : ''} ${item.skipped ? 'skipped' : ''}`}>
-      {item.autoDebit && item.paid && early ? (
+      {item.autoDebit && item.paid ? (
         <span class="auto-mark" role="img" aria-label={item.kind === 'income' ? 'Incassata' : 'Pagata'}>✓</span>
       ) : item.autoDebit ? (
         <span class="auto-mark" aria-hidden="true">↻</span>
@@ -266,7 +266,7 @@ export function Mese() {
   const bal = latestBalance(d);
   const today = todayLocal();
   // le voci automatiche già passate sono già nel conto: non servono più nell'elenco
-  const all = buildItems(d, start, end).filter((i) => !(i.autoDebit && i.paid && i.day <= today));
+  const all = buildItems(d, start, end).filter((i) => !(i.autoDebit && i.paid && i.day < today));
   const byCategory = (i: Item) => !categoriaFiltro.value || (categoriaFiltro.value === '__none' ? !i.categoryId : i.categoryId === categoriaFiltro.value);
   const items = all.filter(passes[filtro.value]).filter(byCategory);
   const res = residual(d, today, today);
