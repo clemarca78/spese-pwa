@@ -379,6 +379,9 @@ export function Regole() {
           <ul class="preview">
             {preview.map((p) => <li data-testid="preview-date" key={p}>{fmtDay(p)}</li>)}
           </ul>
+          {!specError && preview.length === 0 ? (
+            <p class="neg" role="status" data-testid="no-dates">Nel periodo scelto non cade nessuna data: la regola non genererà voci. Controlla il giorno del mese (o la frequenza) e le date di inizio e fine.</p>
+          ) : null}
         </div>
         {error ? <p role="alert" class="neg">{error}</p> : null}
         <div class="row">
